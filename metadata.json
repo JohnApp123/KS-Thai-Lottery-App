@@ -1,0 +1,6 @@
+{
+  "name": "Thai Lottery Sales & Management System",
+  "description": "Thai Lottery Sales & Customer Record Management System (ထိုင်းထီ ရောင်းချရေး နှင့် မှတ်တမ်းထိန်းချုပ်စနစ်)",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
