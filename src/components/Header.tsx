@@ -35,6 +35,7 @@ interface HeaderProps {
   onVerifyReservation?: (ticket: TicketType) => void;
   syncStatus?: SyncStatus;
   onManualCloudSync?: () => void;
+  onOpenSellModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -68,6 +69,7 @@ export const Header: React.FC<HeaderProps> = ({
   onVerifyReservation,
   syncStatus = 'connected',
   onManualCloudSync,
+  onOpenSellModal,
 }) => {
   const [rateModalOpen, setRateModalOpen] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState<'ticketPrice' | 'exchangeRate'>('ticketPrice');
@@ -126,6 +128,9 @@ export const Header: React.FC<HeaderProps> = ({
     if (targetAdmin && pinInput === targetAdmin.pin) {
       setActiveAdminId(targetAdmin.id);
       setUserRole('admin');
+      if (activeTab === 'self-select') {
+        setActiveTab('inventory');
+      }
       setPinModalOpen(false);
       setPinInput('');
       setPinError('');
@@ -218,6 +223,20 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
+            {/* Admin-only Sell Tickets Quick Button */}
+            {userRole === 'admin' && onOpenSellModal && (
+              <button
+                type="button"
+                onClick={onOpenSellModal}
+                className="px-2.5 sm:px-3 py-1.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer shrink-0"
+                title="Admin အတွက် ထီလက်မှတ် ရောင်းချရန် (Sell Option)"
+              >
+                <ShoppingBag className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span className="hidden xs:inline">ထီရောင်းမည်</span>
+                <span className="xs:hidden">ရောင်း</span>
+              </button>
+            )}
+
             {/* Dedicated Settings Button */}
             {userRole === 'admin' ? (
               <button
@@ -271,60 +290,22 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex flex-col lg:flex-row lg:items-center justify-between gap-2 sm:gap-3">
           {/* Navigation Tabs */}
           <div className="flex items-center space-x-1 sm:space-x-1.5 overflow-x-auto no-scrollbar pb-1 lg:pb-0">
-            {/* Customer Main Tab: Self Selection */}
-            <button
-              onClick={() => setActiveTab('self-select')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
-                activeTab === 'self-select'
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs font-bold'
-                  : 'text-amber-400/90 hover:text-amber-300 hover:bg-amber-500/10'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>ထီရွေးဝယ်မည်</span>
-            </button>
-
-            {/* Customer Tab: My Orders / Lookup */}
-            <button
-              onClick={() => setActiveTab('my-orders')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
-                activeTab === 'my-orders'
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-xs'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-            >
-              <PhoneCall className="w-3.5 h-3.5" />
-              <span>ဝယ်မှတ်တမ်းရှာ</span>
-            </button>
-
-            {/* Tab: Check Draw Results */}
-            <button
-              onClick={() => setActiveTab('results')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
-                activeTab === 'results'
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-xs'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-            >
-              <Trophy className="w-3.5 h-3.5 text-amber-400" />
-              <span>ထီပေါက်စဉ်</span>
-            </button>
-
-            {/* Admin-only Tabs */}
-            {userRole === 'admin' && (
+            {userRole === 'admin' ? (
               <>
+                {/* Admin Tab 1: Ticket Inventory in place of Customer Self Selection */}
                 <button
                   onClick={() => setActiveTab('inventory')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
                     activeTab === 'inventory'
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-xs font-bold'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs font-bold'
+                      : 'text-amber-400/90 hover:text-amber-300 hover:bg-amber-500/10'
                   }`}
                 >
-                  <Ticket className="w-3.5 h-3.5" />
+                  <Ticket className="w-3.5 h-3.5 text-amber-400" />
                   <span>ထီစာရင်း</span>
                 </button>
 
+                {/* Admin Tab 2: Sales Record */}
                 <button
                   onClick={() => setActiveTab('sales')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
@@ -337,6 +318,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <span>အရောင်းမှတ်တမ်း</span>
                 </button>
 
+                {/* Admin Tab 3: Customer Directory */}
                 <button
                   onClick={() => setActiveTab('customers')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
@@ -349,6 +331,33 @@ export const Header: React.FC<HeaderProps> = ({
                   <span>ဝယ်သူများ</span>
                 </button>
 
+                {/* Tab: Order Lookup */}
+                <button
+                  onClick={() => setActiveTab('my-orders')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                    activeTab === 'my-orders'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-xs'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  }`}
+                >
+                  <PhoneCall className="w-3.5 h-3.5" />
+                  <span>ဝယ်မှတ်တမ်းရှာ</span>
+                </button>
+
+                {/* Tab: Check Draw Results */}
+                <button
+                  onClick={() => setActiveTab('results')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                    activeTab === 'results'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-xs'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                  <span>ထီပေါက်စဉ်</span>
+                </button>
+
+                {/* Admin Tab: Reports */}
                 <button
                   onClick={() => setActiveTab('reports')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
@@ -361,6 +370,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <span>အစီရင်ခံစာ</span>
                 </button>
 
+                {/* Admin Tab: Settings */}
                 <button
                   onClick={() => setActiveTab('settings')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
@@ -371,6 +381,47 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   <Settings className="w-3.5 h-3.5 text-amber-400" />
                   <span>ဆက်တင် (Settings)</span>
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Customer Main Tab: Self Selection */}
+                <button
+                  onClick={() => setActiveTab('self-select')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                    activeTab === 'self-select'
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs font-bold'
+                      : 'text-amber-400/90 hover:text-amber-300 hover:bg-amber-500/10'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>ထီရွေးဝယ်မည်</span>
+                </button>
+
+                {/* Customer Tab: My Orders / Lookup */}
+                <button
+                  onClick={() => setActiveTab('my-orders')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                    activeTab === 'my-orders'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-xs'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  }`}
+                >
+                  <PhoneCall className="w-3.5 h-3.5" />
+                  <span>ဝယ်မှတ်တမ်းရှာ</span>
+                </button>
+
+                {/* Tab: Check Draw Results */}
+                <button
+                  onClick={() => setActiveTab('results')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                    activeTab === 'results'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-xs'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                  <span>ထီပေါက်စဉ်</span>
                 </button>
               </>
             )}

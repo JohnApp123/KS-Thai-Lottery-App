@@ -177,7 +177,7 @@ export const CustomerSelfSelection: React.FC<CustomerSelfSelectionProps> = ({
     e.preventDefault();
     if (cart.length === 0) return;
     if (!customerName.trim() || !customerPhone.trim()) {
-      alert('ကျေးဇူးပြု၍ ဝယ်ယူသူ နာမည် နှင့် ဖုန်းနံပါတ် ဖြည့်သွင်းပေးပါ');
+      alert('ကျေးဇူးပြု၍ ဝယ်ယူသူ နာမည် နှင့် ဆက်သွယ်ရန် (Phone / Viber / Social Acc) ဖြည့်သွင်းပေးပါ');
       return;
     }
 
@@ -1050,17 +1050,20 @@ export const CustomerSelfSelection: React.FC<CustomerSelfSelectionProps> = ({
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
-                      ဖုန်းနံပါတ် (ထီပေါက်ပါက အကြောင်းကြားရန်) <span className="text-rose-500">*</span>
+                      ဆက်သွယ်ရန် (ဖုန်းနံပါတ် / Viber / Social Acc) <span className="text-rose-500">*</span>
+                      <span className="block text-[10px] text-amber-700 font-normal mt-0.5">
+                        (ထီပေါက်ပါက အမြန်ဆုံး အကြောင်းကြား ဆက်သွယ်ပေးနိုင်ရန်)
+                      </span>
                     </label>
                     <div className="relative">
                       <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                       <input
                         type="text"
                         required
-                        placeholder="0912345678"
+                        placeholder="ဖုန်းနံပါတ် (09...) သို့မဟုတ် Viber / Facebook / Telegram Acc"
                         value={customerPhone}
                         onChange={(e) => setCustomerPhone(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-3 py-2 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:bg-white focus:border-emerald-500"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:bg-white focus:border-emerald-500"
                       />
                     </div>
                   </div>

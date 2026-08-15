@@ -22,6 +22,7 @@ import {
   Layers,
   Archive,
   Info,
+  ArrowLeft,
 } from 'lucide-react';
 import {
   UserRole,
@@ -291,7 +292,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            <button
+              type="button"
+              onClick={() => onNavigateTab('inventory')}
+              className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-xs active:scale-95"
+              title="ပင်မ ထီစာရင်း စာမျက်နှာသို့ ပြန်သွားမည်"
+            >
+              <ArrowLeft className="w-4 h-4 text-amber-400" />
+              <span>ပင်မစာမျက်နှာ (Back)</span>
+            </button>
             <button
               type="button"
               onClick={() => onNavigateTab('self-select')}

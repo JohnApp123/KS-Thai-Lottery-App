@@ -30,6 +30,7 @@ import {
   Ticket as TicketIcon,
   X,
   RefreshCw,
+  Pencil,
 } from 'lucide-react';
 
 interface SalesTableProps {
@@ -37,6 +38,7 @@ interface SalesTableProps {
   onTogglePaymentStatus: (saleId: string) => void;
   onCancelSale: (saleId: string) => void;
   onViewReceipt: (sale: SaleRecord) => void;
+  onEditSale?: (sale: SaleRecord) => void;
   onResetAllSalesAndDebts?: () => void;
   selectedDrawDate: string;
   setSelectedDrawDate?: (date: string) => void;
@@ -52,6 +54,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
   onTogglePaymentStatus,
   onCancelSale,
   onViewReceipt,
+  onEditSale,
   onResetAllSalesAndDebts,
   selectedDrawDate,
   setSelectedDrawDate,
@@ -779,6 +782,15 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                               </button>
 
                               <div className="flex items-center gap-1">
+                                {onEditSale && (
+                                  <button
+                                    onClick={() => onEditSale(sale)}
+                                    className="p-1.5 text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer border border-blue-200"
+                                    title="ဝယ်သူနှင့် အရောင်းအချက်အလက် ပြင်ဆင်ရန်"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => onViewReceipt(sale)}
                                   className="p-1.5 text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer border border-slate-200"
@@ -951,6 +963,15 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                         {/* Action buttons */}
                         <td className="py-3.5 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            {onEditSale && (
+                              <button
+                                onClick={() => onEditSale(sale)}
+                                className="p-1.5 text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer border border-blue-200"
+                                title="ဝယ်သူနှင့် အရောင်းအချက်အလက် ပြင်ဆင်ရန်"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                             <button
                               onClick={() => onViewReceipt(sale)}
                               className="p-1.5 text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer border border-slate-200"

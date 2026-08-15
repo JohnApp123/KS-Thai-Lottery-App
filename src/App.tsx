@@ -13,6 +13,7 @@ import { SalesTable } from './components/SalesTable';
 import { SellModal } from './components/SellModal';
 import { AddTicketModal } from './components/AddTicketModal';
 import { ReceiptModal } from './components/ReceiptModal';
+import { EditSaleModal } from './components/EditSaleModal';
 import { DrawResultsChecker } from './components/DrawResultsChecker';
 import { CustomerDirectory } from './components/CustomerDirectory';
 import { CustomerSelfSelection } from './components/CustomerSelfSelection';
@@ -120,6 +121,10 @@ export default function App() {
   
   const [receiptModalOpen, setReceiptModalOpen] = useState(false);
   const [activeReceiptSale, setActiveReceiptSale] = useState<SaleRecord | null>(null);
+
+  // Admin Edit Sale Record Modal state
+  const [editSaleModalOpen, setEditSaleModalOpen] = useState(false);
+  const [saleToEdit, setSaleToEdit] = useState<SaleRecord | null>(null);
 
   // Admin Payment Verification Modal state (for confirming temporary sold out / reserved tickets with slip screenshots)
   const [verificationModalOpen, setVerificationModalOpen] = useState(false);
@@ -687,6 +692,38 @@ export default function App() {
     setReceiptModalOpen(true);
   };
 
+  const handleOpenEditSale = (sale: SaleRecord) => {
+    setSaleToEdit(sale);
+    setEditSaleModalOpen(true);
+  };
+
+  const handleSaveEditedSale = (updatedSale: SaleRecord) => {
+    const updatedSales = sales.map((s) => (s.id === updatedSale.id ? updatedSale : s));
+    setSales(updatedSales);
+
+    // Sync ticket status / details if applicable
+    const updatedTickets = tickets.map((t) => {
+      if (t.id === updatedSale.ticketId || t.number === updatedSale.ticketNumber) {
+        const newStatus = updatedSale.paymentStatus === 'pending' ? 'reserved' : 'sold';
+        return {
+          ...t,
+          drawDate: updatedSale.drawDate || t.drawDate,
+          serialCode: updatedSale.serialCode || t.serialCode,
+          seriesNumber: updatedSale.seriesNumber || t.seriesNumber,
+          status: newStatus as 'reserved' | 'sold',
+          reservedCustomerName: updatedSale.customerName,
+          reservedCustomerPhone: updatedSale.customerPhone,
+        };
+      }
+      return t;
+    });
+    setTickets(updatedTickets);
+
+    showToast(`ထီနံပါတ် ${updatedSale.ticketNumber} ၏ ဝယ်သူအချက်အလက်များကို အောင်မြင်စွာ ပြင်ဆင်ပြီးပါပြီ`);
+    setEditSaleModalOpen(false);
+    setSaleToEdit(null);
+  };
+
   const handleViewBuyerFromTicket = (ticket: Ticket) => {
     const matchingSale = sales.find(
       (s) => s.ticketId === ticket.id || s.ticketNumber === ticket.number
@@ -809,6 +846,10 @@ export default function App() {
         onVerifyReservation={handleOpenVerification}
         syncStatus={syncStatus}
         onManualCloudSync={handleManualCloudSync}
+        onOpenSellModal={() => {
+          setTicketsToSell([]);
+          setSellModalOpen(true);
+        }}
       />
 
       {/* Main Content Area */}
@@ -912,6 +953,7 @@ export default function App() {
             onTogglePaymentStatus={handleTogglePaymentStatus}
             onCancelSale={handleCancelSale}
             onViewReceipt={handleViewReceipt}
+            onEditSale={handleOpenEditSale}
             onResetAllSalesAndDebts={handleResetAllSalesAndDebts}
             selectedDrawDate={selectedDrawDate}
             setSelectedDrawDate={setSelectedDrawDate}
@@ -1000,10 +1042,12 @@ export default function App() {
         isOpen={sellModalOpen}
         onClose={() => setSellModalOpen(false)}
         ticketsToSell={ticketsToSell}
+        availableTickets={tickets.filter((t) => t.status === 'available')}
         onConfirmSale={handleConfirmSale}
         existingCustomers={existingCustomers}
         exchangeRate={exchangeRate}
         fixedTicketPriceMMK={fixedTicketPriceMMK}
+        selectedDrawDate={selectedDrawDate}
       />
 
       <AddTicketModal
@@ -1047,6 +1091,20 @@ export default function App() {
         sale={activeReceiptSale}
         exchangeRate={exchangeRate}
         paymentAccounts={paymentAccounts}
+        onEditSale={handleOpenEditSale}
+        userRole={userRole}
+      />
+
+      <EditSaleModal
+        isOpen={editSaleModalOpen}
+        onClose={() => {
+          setEditSaleModalOpen(false);
+          setSaleToEdit(null);
+        }}
+        sale={saleToEdit}
+        onSaveSale={handleSaveEditedSale}
+        exchangeRate={exchangeRate}
+        drawDates={uniqueDrawDates}
       />
 
       {/* Admin Payment Slip Verification Modal */}

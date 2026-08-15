@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SaleRecord, PaymentAccount } from '../types';
 import { formatCurrency, formatDateBurmese } from '../utils/formatters';
-import { X, Printer, CheckCircle, AlertCircle, Copy, QrCode, Download, Smartphone, Check, Award, Receipt, Calendar, User, Phone, Sparkles, Eye } from 'lucide-react';
+import { X, Printer, CheckCircle, AlertCircle, Copy, QrCode, Download, Smartphone, Check, Award, Receipt, Calendar, User, Phone, Sparkles, Eye, Pencil, ArrowLeft } from 'lucide-react';
 import QRCode from 'qrcode';
 
 interface ReceiptModalProps {
@@ -10,6 +10,8 @@ interface ReceiptModalProps {
   sale: SaleRecord | null;
   exchangeRate?: number;
   paymentAccounts?: PaymentAccount[];
+  onEditSale?: (sale: SaleRecord) => void;
+  userRole?: 'admin' | 'customer';
 }
 
 export const ReceiptModal: React.FC<ReceiptModalProps> = ({
@@ -18,6 +20,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
   sale,
   exchangeRate = 120,
   paymentAccounts = [],
+  onEditSale,
+  userRole = 'customer',
 }) => {
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [generatedQrUrl, setGeneratedQrUrl] = useState<string>('');
@@ -561,14 +565,41 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
         </div>
 
         {/* Modal Action Buttons */}
-        <div className="p-4 bg-slate-100/90 border-t border-slate-200 flex items-center justify-between gap-2">
-          <button
-            onClick={handleCopyText}
-            className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-300 shadow-2xs"
-          >
-            <Copy className="w-3.5 h-3.5 text-amber-700" />
-            <span>စာသား ကူးယူမည်</span>
-          </button>
+        <div className="p-4 bg-slate-100/90 border-t border-slate-200 flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
+              title="ပိတ်မည် / ပင်မသို့ ပြန်သွားမည်"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-amber-400" />
+              <span>နောက်သို့ (Back)</span>
+            </button>
+
+            <button
+              onClick={handleCopyText}
+              className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-300 shadow-2xs"
+            >
+              <Copy className="w-3.5 h-3.5 text-amber-700" />
+              <span>စာသား ကူးယူမည်</span>
+            </button>
+
+            {userRole === 'admin' && onEditSale && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onEditSale(sale);
+                }}
+                className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-blue-200 shadow-2xs"
+                title="ဝယ်သူနှင့် အရောင်းအချက်အလက် ပြင်ဆင်ရန်"
+              >
+                <Pencil className="w-3.5 h-3.5 text-blue-600" />
+                <span>အချက်အလက် ပြင်မည်</span>
+              </button>
+            )}
+          </div>
 
           <div className="flex items-center gap-2">
             <button
