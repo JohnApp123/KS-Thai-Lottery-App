@@ -34,7 +34,11 @@ export default function App() {
 
   // Load state from LocalStorage or fallback to INITIAL mock data
   const [admins, setAdmins] = useState<AdminUser[]>(() => {
-    return safeStorage.get<AdminUser[]>('tl_admins', INITIAL_ADMINS);
+    const loaded = safeStorage.get<AdminUser[]>('tl_admins', INITIAL_ADMINS);
+    if (Array.isArray(loaded) && (loaded.some((a) => a.name.includes('Owner-') || a.name.includes('ဦးကျော်') || a.name.includes('ကိုစိုး') || a.pin === '1234') || loaded.length === 0)) {
+      return INITIAL_ADMINS;
+    }
+    return loaded;
   });
 
   const [activeAdminId, setActiveAdminId] = useState<string>(() => {
@@ -42,7 +46,11 @@ export default function App() {
   });
 
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>(() => {
-    return safeStorage.get<PaymentAccount[]>('tl_payment_accounts', INITIAL_PAYMENT_ACCOUNTS);
+    const loaded = safeStorage.get<PaymentAccount[]>('tl_payment_accounts', INITIAL_PAYMENT_ACCOUNTS);
+    if (Array.isArray(loaded) && (loaded.some((a) => a.accountName.includes('ဦးကျော်') || a.accountName.includes('ဒေါ်မြတ်') || a.accountNumber.includes('09791234567') || a.accountNumber.includes('******9569')) || loaded.length === 0)) {
+      return INITIAL_PAYMENT_ACCOUNTS;
+    }
+    return loaded;
   });
 
   const [tickets, setTickets] = useState<Ticket[]>(() => {
@@ -544,6 +552,14 @@ export default function App() {
     showToast(`ထီနံပါတ် ${saleToCancel.ticketNumber} ကို ထီစာရင်းထဲသို့ ပြန်လည်သွင်းယူပြီးပါပြီ`);
   };
 
+  const handleDeleteSingleTicket = (ticket: Ticket) => {
+    if (confirm(`ထီနံပါတ် "${ticket.number}" ကို စာရင်းမှ ဖျက်ပစ်ရန် သေချာပါသလား?`)) {
+      setTickets((prev) => prev.filter((t) => t.id !== ticket.id));
+      setSales((prev) => prev.filter((s) => s.ticketId !== ticket.id && s.ticketNumber !== ticket.number));
+      showToast(`ထီနံပါတ် ${ticket.number} ကို စာရင်းမှ ဖျက်ပစ်ပြီးပါပြီ`);
+    }
+  };
+
   const handleViewReceipt = (sale: SaleRecord) => {
     setActiveReceiptSale(sale);
     setReceiptModalOpen(true);
@@ -753,6 +769,7 @@ export default function App() {
               onConfirmPayment={handleConfirmPayment}
               onCancelReservation={handleCancelReservation}
               onVerifyReservation={handleOpenVerification}
+              onDeleteTicket={handleDeleteSingleTicket}
               selectedDrawDate={selectedDrawDate}
               exchangeRate={exchangeRate}
               fixedTicketPriceMMK={fixedTicketPriceMMK}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Ticket, SaleRecord } from '../types';
 import { formatDateBurmese, toBurmeseDigits, getTicketPriceMMK, getRelativeDateLabel } from '../utils/formatters';
-import { ShoppingBag, Eye, CheckCircle2, XCircle, Camera, Maximize2, X, Clock, Check, RefreshCw, Phone, User, Calendar, ShieldCheck, Image as ImageIcon } from 'lucide-react';
+import { ShoppingBag, Eye, CheckCircle2, XCircle, Camera, Maximize2, X, Clock, Check, RefreshCw, Phone, User, Calendar, ShieldCheck, Image as ImageIcon, Trash2 } from 'lucide-react';
 
 interface TicketCardProps {
   ticket: Ticket;
@@ -11,6 +11,7 @@ interface TicketCardProps {
   onConfirmPayment?: (ticket: Ticket) => void;
   onCancelReservation?: (ticket: Ticket) => void;
   onVerifyReservation?: (ticket: Ticket, saleRecord?: SaleRecord) => void;
+  onDeleteTicket?: (ticket: Ticket) => void;
   isSelectedForBatch?: boolean;
   onToggleBatchSelect?: (ticket: Ticket) => void;
   batchSelectActive?: boolean;
@@ -26,6 +27,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
   onConfirmPayment,
   onCancelReservation,
   onVerifyReservation,
+  onDeleteTicket,
   isSelectedForBatch = false,
   onToggleBatchSelect,
   batchSelectActive = false,
@@ -82,31 +84,47 @@ export const TicketCard: React.FC<TicketCardProps> = ({
             </span>
           </div>
 
-          {/* Status Badge */}
-          <div
-            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-              isAvailable
-                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'
-                : isReserved
-                ? 'bg-amber-500 text-slate-950 border border-amber-400 animate-pulse'
-                : 'bg-rose-50 text-rose-700 border border-rose-200/80'
-            }`}
-          >
-            {isAvailable ? (
-              <>
-                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                <span>ပစ္စည်းရှိ</span>
-              </>
-            ) : isReserved ? (
-              <>
-                <Clock className="w-3 h-3 text-slate-950" />
-                <span>ယာယီ Sold Out (ငွေလွှဲစစ်ဆေးဆဲ)</span>
-              </>
-            ) : (
-              <>
-                <XCircle className="w-3 h-3 text-rose-600" />
-                <span>ရောင်းပြီး</span>
-              </>
+          {/* Status Badge & Delete Action */}
+          <div className="flex items-center gap-1.5">
+            <div
+              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                isAvailable
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'
+                  : isReserved
+                  ? 'bg-amber-500 text-slate-950 border border-amber-400 animate-pulse'
+                  : 'bg-rose-50 text-rose-700 border border-rose-200/80'
+              }`}
+            >
+              {isAvailable ? (
+                <>
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                  <span>ပစ္စည်းရှိ</span>
+                </>
+              ) : isReserved ? (
+                <>
+                  <Clock className="w-3 h-3 text-slate-950" />
+                  <span>ယာယီ Sold Out (ငွေလွှဲစစ်ဆေးဆဲ)</span>
+                </>
+              ) : (
+                <>
+                  <XCircle className="w-3 h-3 text-rose-600" />
+                  <span>ရောင်းပြီး</span>
+                </>
+              )}
+            </div>
+
+            {onDeleteTicket && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteTicket(ticket);
+                }}
+                title="ဤထီလက်မှတ်ကို စာရင်းမှ ဖျက်ပစ်မည်"
+                className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             )}
           </div>
         </div>

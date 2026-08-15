@@ -13,6 +13,7 @@ interface TicketGridProps {
   onConfirmPayment?: (ticket: Ticket) => void;
   onCancelReservation?: (ticket: Ticket) => void;
   onVerifyReservation?: (ticket: Ticket, saleRecord?: SaleRecord) => void;
+  onDeleteTicket?: (ticket: Ticket) => void;
   selectedDrawDate: string;
   exchangeRate?: number;
   fixedTicketPriceMMK?: number;
@@ -33,6 +34,7 @@ export const TicketGrid: React.FC<TicketGridProps> = ({
   onConfirmPayment,
   onCancelReservation,
   onVerifyReservation,
+  onDeleteTicket,
   selectedDrawDate,
   exchangeRate = 120,
   fixedTicketPriceMMK = 15000,
@@ -433,6 +435,7 @@ export const TicketGrid: React.FC<TicketGridProps> = ({
                 onConfirmPayment={onConfirmPayment}
                 onCancelReservation={onCancelReservation}
                 onVerifyReservation={onVerifyReservation}
+                onDeleteTicket={onDeleteTicket}
                 isSelectedForBatch={selectedTicketIds.includes(ticket.id)}
                 onToggleBatchSelect={handleToggleBatchSelect}
                 batchSelectActive={batchMode}

@@ -1,24 +1,25 @@
 import { Ticket, SaleRecord, DrawResult, AdminUser, PaymentAccount } from '../types';
+import { KPAY_KHANT_SAT_QR_DATA_URL } from './kpayQrData';
 
 export const INITIAL_ADMINS: AdminUser[] = [
   {
     id: 'admin-1',
-    name: 'ဦးကျော် (ဆိုင်ရှင် Owner)',
-    pin: '1234',
+    name: 'Khant Sat',
+    pin: '9569',
     roleName: 'Owner',
     avatarColor: 'bg-amber-500',
   },
   {
     id: 'admin-2',
-    name: 'ဒေါ်မြတ် (မန်နေဂျာ Manager)',
-    pin: '5678',
+    name: 'Phyo Wana',
+    pin: '1111',
     roleName: 'Manager',
     avatarColor: 'bg-emerald-500',
   },
   {
     id: 'admin-3',
-    name: 'ကိုစိုး (အက်ဒမင် Admin)',
-    pin: '9999',
+    name: 'Yoon',
+    pin: '2222',
     roleName: 'Admin',
     avatarColor: 'bg-blue-500',
   },
@@ -28,19 +29,10 @@ export const INITIAL_PAYMENT_ACCOUNTS: PaymentAccount[] = [
   {
     id: 'acc-1',
     provider: 'KBZPay',
-    accountName: 'ဦးကျော် (ထိုင်းထီ ဆိုင်)',
-    accountNumber: '09791234567',
-    qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=KBZPay-09791234567-UKyawThaiLottery',
-    notes: 'KPay ငွေလွှဲပြီးပါက ပြေစာ (Slip) အား ဖုန်း သို့မဟုတ် Viber သို့ ပို့ပေးပါရန်',
-    isActive: true,
-  },
-  {
-    id: 'acc-2',
-    provider: 'WaveMoney',
-    accountName: 'ဒေါ်မြတ် (ထိုင်းထီ)',
-    accountNumber: '09450987654',
-    qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=WavePay-09450987654-DawMyatThaiLottery',
-    notes: 'Wave Money ဖြင့် ငွေလွှဲနိုင်ပါသည်',
+    accountName: 'U KHANT SAT HEIN',
+    accountNumber: '09789669569',
+    qrCodeUrl: KPAY_KHANT_SAT_QR_DATA_URL,
+    notes: 'ငွေလွှဲပြီးပါက ပြေစာ(Slip)အား Viberသို့ပို့ပေးပါရန်',
     isActive: true,
   },
 ];

@@ -120,7 +120,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({
       >
         <div>
           <div className="flex items-center gap-1 mb-1">
-            <p className="text-xs text-amber-900 font-bold">ယာယီ Sold ( Confirm ရန် )</p>
+            <p className="text-xs text-amber-900 font-bold">ယာယီ Soldout</p>
             {reservedCount > 0 && (
               <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-ping" />
             )}
