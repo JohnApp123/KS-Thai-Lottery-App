@@ -134,16 +134,6 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  const handleQuickUnlock = () => {
-    if (selectedAdminId) {
-      setActiveAdminId(selectedAdminId);
-    }
-    setUserRole('admin');
-    setPinModalOpen(false);
-    setPinInput('');
-    setPinError('');
-  };
-
   const handleSaveAdminEdits = (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateAdmins(editingAdmins);
@@ -451,7 +441,6 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                         <div>
                           <p className="text-xs font-bold text-slate-900">{adm.name}</p>
-                          <p className="text-[10px] text-slate-500 font-mono">PIN: {adm.pin}</p>
                         </div>
                       </div>
                       <span className="text-[10px] font-bold bg-white px-2 py-0.5 rounded border border-slate-200 text-amber-800">
@@ -480,21 +469,13 @@ export const Header: React.FC<HeaderProps> = ({
                 {pinError && <p className="text-xs text-rose-600 font-medium mt-1.5">{pinError}</p>}
               </div>
 
-              <div className="flex flex-col gap-2 pt-2 border-t border-slate-100">
+              <div className="pt-2 border-t border-slate-100">
                 <button
                   type="submit"
                   className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer"
                 >
                   <Lock className="w-4 h-4" />
                   <span>အက်ဒမင်အဖြစ် ဝင်မည်</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleQuickUnlock}
-                  className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs rounded-xl transition-all"
-                >
-                  တိုက်ရိုက် ဝင်မည် (Quick Unlock)
                 </button>
               </div>
             </form>
