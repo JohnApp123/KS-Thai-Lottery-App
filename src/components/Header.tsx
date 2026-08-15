@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Ticket, ShoppingBag, Users, Trophy, Plus, RefreshCw, Coins, Sparkles, Check, X, ArrowUpRight, Lock, ShieldCheck, PhoneCall, KeyRound, UserCheck, Eye, Settings, Edit3, BarChart3, Calendar, Archive, QrCode, CreditCard, Search } from 'lucide-react';
+import { Ticket, ShoppingBag, Users, Trophy, Plus, RefreshCw, Coins, Sparkles, Check, X, ArrowUpRight, Lock, ShieldCheck, PhoneCall, KeyRound, UserCheck, Eye, Settings, Edit3, BarChart3, Calendar, Archive, QrCode, CreditCard, Search, Cloud, CloudCheck, Wifi } from 'lucide-react';
 import { AppTab, UserRole, AdminUser, Ticket as TicketType, SaleRecord } from '../types';
+import { SyncStatus } from '../services/supabaseSync';
 import { GlobalSearchBar } from './GlobalSearchBar';
 
 interface HeaderProps {
@@ -32,6 +33,8 @@ interface HeaderProps {
   onViewReceipt?: (sale: SaleRecord) => void;
   onViewBuyer?: (ticket: TicketType) => void;
   onVerifyReservation?: (ticket: TicketType) => void;
+  syncStatus?: SyncStatus;
+  onManualCloudSync?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -63,6 +66,8 @@ export const Header: React.FC<HeaderProps> = ({
   onViewReceipt,
   onViewBuyer,
   onVerifyReservation,
+  syncStatus = 'connected',
+  onManualCloudSync,
 }) => {
   const [rateModalOpen, setRateModalOpen] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState<'ticketPrice' | 'exchangeRate'>('ticketPrice');
@@ -172,6 +177,18 @@ export const Header: React.FC<HeaderProps> = ({
                     <span>ဝယ်သူမုဒ်</span>
                   </span>
                 )}
+
+                {/* Supabase Cloud Sync Status Badge */}
+                <button
+                  type="button"
+                  onClick={onManualCloudSync}
+                  title="Supabase Database Real-time Sync (နှိပ်၍ Data ပြန်လည် Refresh လုပ်နိုင်ပါသည်)"
+                  className="inline-flex items-center gap-1 bg-sky-500/15 text-sky-300 border border-sky-500/30 hover:bg-sky-500/25 px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 transition-all cursor-pointer"
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${syncStatus === 'connected' ? 'bg-emerald-400 animate-pulse' : syncStatus === 'syncing' ? 'bg-amber-400 animate-spin' : 'bg-sky-400'}`} />
+                  <span className="hidden xs:inline">Supabase Sync</span>
+                  <span className="xs:hidden">Sync</span>
+                </button>
               </div>
               <p className="text-[11px] sm:text-xs text-slate-400 font-medium hidden sm:block">
                 Thai Lottery Sales & Management System

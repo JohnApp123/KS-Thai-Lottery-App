@@ -24,6 +24,13 @@ import { PaymentVerificationModal } from './components/PaymentVerificationModal'
 import { SettingsPage } from './components/SettingsPage';
 import { fetchLatestTHBRate } from './utils/formatters';
 import { safeStorage } from './utils/storage';
+import {
+  fetchSupabaseData,
+  saveRecordToSupabase,
+  subscribeToSupabaseRealtime,
+  pushFullStateToSupabase,
+  SyncStatus,
+} from './services/supabaseSync';
 import { CheckCircle2 } from 'lucide-react';
 
 export default function App() {
@@ -121,14 +128,118 @@ export default function App() {
 
   // Toast Notification state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  
+  // Supabase Real-time Sync State
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('connecting');
+  const isRemoteSyncRef = React.useRef(false);
+  const isInitialLoadDoneRef = React.useRef(false);
+
+  // 1. Initial Data Fetch & Real-time Subscription with Supabase Database
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+
+    const initSupabase = async () => {
+      setSyncStatus('connecting');
+      try {
+        const cloudData = await fetchSupabaseData();
+        if (cloudData && Object.keys(cloudData).length > 0) {
+          isRemoteSyncRef.current = true;
+          if (cloudData.tickets) setTickets(cloudData.tickets);
+          if (cloudData.sales) setSales(cloudData.sales);
+          if (cloudData.results) setResults(cloudData.results);
+          if (cloudData.paymentAccounts) setPaymentAccounts(cloudData.paymentAccounts);
+          if (cloudData.admins) setAdmins(cloudData.admins);
+          if (cloudData.selectedDrawDate) setSelectedDrawDate(cloudData.selectedDrawDate);
+          if (typeof cloudData.exchangeRate === 'number') setExchangeRate(cloudData.exchangeRate);
+          if (typeof cloudData.fixedTicketPriceMMK === 'number') setFixedTicketPriceMMK(cloudData.fixedTicketPriceMMK);
+          if (cloudData.archivedDrawDates) setArchivedDrawDates(cloudData.archivedDrawDates);
+          setTimeout(() => {
+            isRemoteSyncRef.current = false;
+          }, 300);
+          setSyncStatus('connected');
+        } else {
+          // Table is clean/new, push current state to seed Supabase database
+          await pushFullStateToSupabase({
+            tickets,
+            sales,
+            results,
+            paymentAccounts,
+            admins,
+            selectedDrawDate,
+            exchangeRate,
+            fixedTicketPriceMMK,
+            archivedDrawDates,
+          });
+          setSyncStatus('connected');
+        }
+
+        // Subscribe to live Postgres changes on `lottery_data`
+        unsubscribe = subscribeToSupabaseRealtime((updated) => {
+          isRemoteSyncRef.current = true;
+          if (updated.tickets) setTickets(updated.tickets);
+          if (updated.sales) setSales(updated.sales);
+          if (updated.results) setResults(updated.results);
+          if (updated.paymentAccounts) setPaymentAccounts(updated.paymentAccounts);
+          if (updated.admins) setAdmins(updated.admins);
+          if (updated.selectedDrawDate) setSelectedDrawDate(updated.selectedDrawDate);
+          if (typeof updated.exchangeRate === 'number') setExchangeRate(updated.exchangeRate);
+          if (typeof updated.fixedTicketPriceMMK === 'number') setFixedTicketPriceMMK(updated.fixedTicketPriceMMK);
+          if (updated.archivedDrawDates) setArchivedDrawDates(updated.archivedDrawDates);
+          setTimeout(() => {
+            isRemoteSyncRef.current = false;
+          }, 300);
+        }, setSyncStatus);
+
+        isInitialLoadDoneRef.current = true;
+      } catch (err) {
+        console.error('Supabase initialization error:', err);
+        setSyncStatus('offline');
+      }
+    };
+
+    initSupabase();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  const handleManualCloudSync = async () => {
+    setSyncStatus('syncing');
+    showToast('Supabase Database မှ နောက်ဆုံး အချက်အလက်များ ရယူနေပါသည်...');
+    const cloudData = await fetchSupabaseData();
+    if (cloudData) {
+      isRemoteSyncRef.current = true;
+      if (cloudData.tickets) setTickets(cloudData.tickets);
+      if (cloudData.sales) setSales(cloudData.sales);
+      if (cloudData.results) setResults(cloudData.results);
+      if (cloudData.paymentAccounts) setPaymentAccounts(cloudData.paymentAccounts);
+      if (cloudData.admins) setAdmins(cloudData.admins);
+      if (cloudData.selectedDrawDate) setSelectedDrawDate(cloudData.selectedDrawDate);
+      if (typeof cloudData.exchangeRate === 'number') setExchangeRate(cloudData.exchangeRate);
+      if (typeof cloudData.fixedTicketPriceMMK === 'number') setFixedTicketPriceMMK(cloudData.fixedTicketPriceMMK);
+      if (cloudData.archivedDrawDates) setArchivedDrawDates(cloudData.archivedDrawDates);
+      setTimeout(() => {
+        isRemoteSyncRef.current = false;
+      }, 300);
+      setSyncStatus('connected');
+      showToast('Supabase Database နှင့် အောင်မြင်စွာ Real-time Sync ပြုလုပ်ပြီးပါပြီ');
+    } else {
+      setSyncStatus('connected');
+      showToast('Supabase Database နှင့် လက်ရှိ အချက်အလက်များ တူညီနေပါသည်');
+    }
+  };
 
   useEffect(() => {
     safeStorage.set('tl_user_role', userRole);
   }, [userRole]);
 
-  // Sync to LocalStorage whenever state changes
+  // Sync to LocalStorage & Supabase Database whenever state changes
   useEffect(() => {
     safeStorage.set('tl_admins', admins);
+    if (!isRemoteSyncRef.current && isInitialLoadDoneRef.current) {
+      saveRecordToSupabase('admins', admins);
+    }
   }, [admins]);
 
   useEffect(() => {
@@ -137,39 +248,50 @@ export default function App() {
 
   useEffect(() => {
     safeStorage.set('tl_payment_accounts', paymentAccounts);
+    if (!isRemoteSyncRef.current && isInitialLoadDoneRef.current) {
+      saveRecordToSupabase('payment_accounts', paymentAccounts);
+    }
   }, [paymentAccounts]);
 
   useEffect(() => {
     safeStorage.set('tl_tickets', tickets);
+    if (!isRemoteSyncRef.current && isInitialLoadDoneRef.current) {
+      saveRecordToSupabase('tickets', tickets);
+    }
   }, [tickets]);
 
   useEffect(() => {
     safeStorage.set('tl_sales', sales);
+    if (!isRemoteSyncRef.current && isInitialLoadDoneRef.current) {
+      saveRecordToSupabase('sales', sales);
+    }
   }, [sales]);
 
   useEffect(() => {
     safeStorage.set('tl_results', results);
+    if (!isRemoteSyncRef.current && isInitialLoadDoneRef.current) {
+      saveRecordToSupabase('results', results);
+    }
   }, [results]);
 
   useEffect(() => {
     safeStorage.set('tl_exchange_rate', exchangeRate.toString());
-  }, [exchangeRate]);
-
-  useEffect(() => {
     safeStorage.set('tl_fixed_ticket_price_mmk', fixedTicketPriceMMK.toString());
-  }, [fixedTicketPriceMMK]);
-
-  useEffect(() => {
     safeStorage.set('tl_archived_draw_dates', archivedDrawDates);
-  }, [archivedDrawDates]);
+    safeStorage.set('tl_selected_draw_date', selectedDrawDate);
+    if (!isRemoteSyncRef.current && isInitialLoadDoneRef.current) {
+      saveRecordToSupabase('pricing', {
+        exchangeRate,
+        fixedTicketPriceMMK,
+        selectedDrawDate,
+        archivedDrawDates,
+      });
+    }
+  }, [exchangeRate, fixedTicketPriceMMK, archivedDrawDates, selectedDrawDate]);
 
   useEffect(() => {
     safeStorage.set('tl_active_tab', activeTab);
   }, [activeTab]);
-
-  useEffect(() => {
-    safeStorage.set('tl_selected_draw_date', selectedDrawDate);
-  }, [selectedDrawDate]);
 
   useEffect(() => {
     safeStorage.set('tl_inventory_status_filter', inventoryStatusFilter);
@@ -685,6 +807,8 @@ export default function App() {
         onViewReceipt={handleViewReceipt}
         onViewBuyer={handleViewBuyerFromTicket}
         onVerifyReservation={handleOpenVerification}
+        syncStatus={syncStatus}
+        onManualCloudSync={handleManualCloudSync}
       />
 
       {/* Main Content Area */}
