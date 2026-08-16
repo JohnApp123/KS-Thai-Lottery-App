@@ -6,6 +6,7 @@ import {
   formatFullDateBurmese,
   getRelativeDateLabel,
   exportSalesToCSV,
+  getSalePriceMMK,
 } from '../utils/formatters';
 import {
   Search,
@@ -169,21 +170,21 @@ export const SalesTable: React.FC<SalesTableProps> = ({
   const stats = useMemo(() => {
     const totalCount = filteredSales.length;
     const totalMMK = filteredSales.reduce(
-      (sum, s) => sum + (s.currency === 'MMK' ? s.salePrice : Math.round(s.salePrice * exchangeRate)),
+      (sum, s) => sum + getSalePriceMMK(s, exchangeRate),
       0
     );
 
     const paidSales = filteredSales.filter((s) => s.paymentStatus === 'paid');
     const paidCount = paidSales.length;
     const paidMMK = paidSales.reduce(
-      (sum, s) => sum + (s.currency === 'MMK' ? s.salePrice : Math.round(s.salePrice * exchangeRate)),
+      (sum, s) => sum + getSalePriceMMK(s, exchangeRate),
       0
     );
 
     const unpaidSales = filteredSales.filter((s) => s.paymentStatus === 'unpaid');
     const unpaidCount = unpaidSales.length;
     const unpaidMMK = unpaidSales.reduce(
-      (sum, s) => sum + (s.currency === 'MMK' ? s.salePrice : Math.round(s.salePrice * exchangeRate)),
+      (sum, s) => sum + getSalePriceMMK(s, exchangeRate),
       0
     );
 
@@ -625,8 +626,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
             (Object.entries(salesGroupedByDate) as [string, SaleRecord[]][]).map(([dateKey, daySales]) => {
               const isCollapsed = collapsedDates[dateKey];
               const relativeLabel = getRelativeDateLabel(dateKey);
-              const dayTotalTHB = daySales.reduce((sum, s) => sum + s.salePrice, 0);
-              const dayTotalMMK = Math.round(dayTotalTHB * exchangeRate);
+              const dayTotalMMK = daySales.reduce((sum, s) => sum + getSalePriceMMK(s, exchangeRate), 0);
               const dayPaidCount = daySales.filter((s) => s.paymentStatus === 'paid').length;
               const dayUnpaidCount = daySales.filter((s) => s.paymentStatus === 'unpaid').length;
 
@@ -748,7 +748,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                             <div className="flex items-center justify-between sm:justify-end gap-3 pl-9 sm:pl-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
                               <div className="text-right">
                                 <span className="text-emerald-700 font-black font-mono text-sm block">
-                                  {(sale.currency === 'MMK' ? sale.salePrice : Math.round(sale.salePrice * exchangeRate)).toLocaleString('en-US')} MMK
+                                  {getSalePriceMMK(sale, exchangeRate).toLocaleString('en-US')} MMK
                                 </span>
                               </div>
 
@@ -919,7 +919,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                         {/* Price MMK */}
                         <td className="py-3.5 px-4 font-bold">
                           <span className="text-emerald-700 block font-mono text-xs sm:text-sm">
-                            {(sale.currency === 'MMK' ? sale.salePrice : Math.round(sale.salePrice * exchangeRate)).toLocaleString('en-US')} MMK
+                            {getSalePriceMMK(sale, exchangeRate).toLocaleString('en-US')} MMK
                           </span>
                         </td>
 

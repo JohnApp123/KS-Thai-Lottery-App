@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SaleRecord, DrawResult } from '../types';
-import { formatDateBurmese, formatDualPrice, formatMMK } from '../utils/formatters';
+import { formatDateBurmese, formatDualPrice, formatMMK, getSalePriceMMK } from '../utils/formatters';
 import { Search, Phone, Ticket as TicketIcon, CheckCircle, AlertCircle, Receipt, Trophy, Sparkles, ShoppingBag, ArrowLeft } from 'lucide-react';
 import { checkTicketWinning } from '../services/thaiLotteryService';
 
@@ -186,7 +186,7 @@ export const CustomerOrderLookup: React.FC<CustomerOrderLookupProps> = ({
                       <div>
                         <span className="text-[10px] text-slate-400 block font-medium">ကျသင့်ငွေ</span>
                         <span className="text-sm font-black text-emerald-700 font-mono">
-                          {formatMMK(sale.salePrice, exchangeRate)}
+                          {formatMMK(getSalePriceMMK(sale, exchangeRate))}
                         </span>
                       </div>
 

@@ -23,7 +23,7 @@ import { DrawCycleModal } from './components/DrawCycleModal';
 import { PaymentAccountsModal } from './components/PaymentAccountsModal';
 import { PaymentVerificationModal } from './components/PaymentVerificationModal';
 import { SettingsPage } from './components/SettingsPage';
-import { fetchLatestTHBRate } from './utils/formatters';
+import { fetchLatestTHBRate, getSalePriceMMK } from './utils/formatters';
 import { safeStorage } from './utils/storage';
 import {
   fetchSupabaseData,
@@ -538,10 +538,13 @@ export default function App() {
   const availableCount = activeTickets.filter((t) => t.status === 'available').length;
   const soldCount = activeTickets.filter((t) => t.status === 'sold').length;
   const reservedCount = activeTickets.filter((t) => t.status === 'reserved').length;
-  const totalRevenue = activeSales.reduce((sum, s) => sum + s.salePrice, 0);
+  const totalRevenue = activeSales.reduce(
+    (sum, s) => sum + getSalePriceMMK(s, exchangeRate),
+    0
+  );
   const pendingCreditAmount = activeSales
     .filter((s) => s.paymentStatus === 'unpaid')
-    .reduce((sum, s) => sum + s.salePrice, 0);
+    .reduce((sum, s) => sum + getSalePriceMMK(s, exchangeRate), 0);
 
   // Actions
   const handleOpenSellSingle = (ticket: Ticket) => {
@@ -576,7 +579,7 @@ export default function App() {
     // Update ticket statuses
     const updatedTickets = tickets.map((t) => {
       if (soldIdsSet.has(t.id)) {
-        // Create corresponding sale record
+        const unitPriceMMK = Math.round(saleData.salePrice / saleData.ticketIds.length);
         const saleRecord: SaleRecord = {
           id: `s-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
           ticketId: t.id,
@@ -586,8 +589,8 @@ export default function App() {
           customerName: saleData.customerName,
           customerPhone: saleData.customerPhone,
           saleDate: saleData.saleDate,
-          salePrice: saleData.salePrice / saleData.ticketIds.length,
-          currency: t.currency,
+          salePrice: unitPriceMMK,
+          currency: 'MMK',
           paymentStatus: saleData.paymentStatus,
           paymentMethod: saleData.paymentMethod,
           paymentSlipUrl: saleData.paymentSlipUrl,

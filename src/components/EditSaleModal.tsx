@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SaleRecord, PaymentStatus } from '../types';
-import { formatDateBurmese, getTicketPriceMMK } from '../utils/formatters';
+import { formatDateBurmese, getTicketPriceMMK, getSalePriceMMK } from '../utils/formatters';
 import {
   X,
   Check,
@@ -105,7 +105,7 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
     onClose();
   };
 
-  const calculatedMMK = currency === 'MMK' ? salePrice : Math.round(salePrice * exchangeRate);
+  const calculatedMMK = getSalePriceMMK({ salePrice, currency }, exchangeRate);
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SaleRecord, CustomerSummary } from '../types';
-import { formatCurrency, formatDateBurmese, formatMMK } from '../utils/formatters';
+import { formatCurrency, formatDateBurmese, formatMMK, getSalePriceMMK } from '../utils/formatters';
 import { Users, Search, Phone, AlertCircle, CheckCircle, Ticket, ChevronRight, ArrowLeft, Home, ShoppingBag } from 'lucide-react';
 
 interface CustomerDirectoryProps {
@@ -21,11 +21,12 @@ export const CustomerDirectory: React.FC<CustomerDirectoryProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCustomerName, setSelectedCustomerName] = useState<string | null>(null);
 
-  // Group sales by customer name & phone
+  // Group sales by customer name & phone with accurate MMK amounts
   const customerMap: { [key: string]: CustomerSummary } = {};
 
   sales.forEach((s) => {
     const key = `${s.customerName.trim()}_${s.customerPhone.trim()}`;
+    const priceMMK = getSalePriceMMK(s, exchangeRate);
     if (!customerMap[key]) {
       customerMap[key] = {
         name: s.customerName,
@@ -38,15 +39,15 @@ export const CustomerDirectory: React.FC<CustomerDirectoryProps> = ({
     }
 
     customerMap[key].totalTickets += 1;
-    customerMap[key].totalSpent += s.salePrice;
+    customerMap[key].totalSpent += priceMMK;
     if (s.paymentStatus === 'unpaid') {
-      customerMap[key].unpaidAmount += s.salePrice;
+      customerMap[key].unpaidAmount += priceMMK;
     }
     customerMap[key].tickets.push({
       ticketNumber: s.ticketNumber,
       drawDate: s.drawDate,
       paymentStatus: s.paymentStatus,
-      price: s.salePrice,
+      price: priceMMK,
     });
   });
 
@@ -112,8 +113,8 @@ export const CustomerDirectory: React.FC<CustomerDirectoryProps> = ({
           customerList.map((c, i) => {
             const hasCredit = c.unpaidAmount > 0;
             const isExpanded = selectedCustomerName === c.name;
-            const totalSpentMMK = Math.round(c.totalSpent * exchangeRate);
-            const unpaidAmountMMK = Math.round(c.unpaidAmount * exchangeRate);
+            const totalSpentMMK = Math.round(c.totalSpent);
+            const unpaidAmountMMK = Math.round(c.unpaidAmount);
 
             return (
               <div
@@ -177,7 +178,7 @@ export const CustomerDirectory: React.FC<CustomerDirectoryProps> = ({
 
                   <div className="flex flex-wrap gap-1.5">
                     {c.tickets.slice(0, isExpanded ? 50 : 3).map((t, idx) => {
-                      const ticketMmk = Math.round(t.price * (t.price > 1000 ? 1 : exchangeRate));
+                      const ticketMmk = Math.round(t.price);
                       return (
                         <div
                           key={idx}

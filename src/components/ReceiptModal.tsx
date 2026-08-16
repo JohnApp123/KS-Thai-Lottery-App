@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SaleRecord, PaymentAccount } from '../types';
-import { formatCurrency, formatDateBurmese } from '../utils/formatters';
+import { formatCurrency, formatDateBurmese, getSalePriceMMK } from '../utils/formatters';
 import { X, Printer, CheckCircle, AlertCircle, Copy, QrCode, Download, Smartphone, Check, Award, Receipt, Calendar, User, Phone, Sparkles, Eye, Pencil, ArrowLeft } from 'lucide-react';
 import QRCode from 'qrcode';
 
@@ -50,11 +50,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
 
   const selectedAccount = activeAccounts.find((a) => a.id === selectedAccountId) || activeAccounts[0];
 
-  const mmkPrice = sale
-    ? sale.currency === 'MMK' || sale.salePrice > 1000
-      ? sale.salePrice
-      : Math.round(sale.salePrice * exchangeRate)
-    : 0;
+  const mmkPrice = getSalePriceMMK(sale, exchangeRate);
 
   // Generate QR if no admin uploaded QR is provided
   useEffect(() => {

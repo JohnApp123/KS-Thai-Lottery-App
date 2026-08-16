@@ -33,6 +33,32 @@ export const getTicketPriceTHB = (
   return exchangeRate > 0 ? Math.round(mmk / exchangeRate) : 110 * (ticket.setCount || 1);
 };
 
+export const getSalePriceMMK = (
+  sale: SaleRecord | { salePrice: number; currency?: string } | null | undefined,
+  exchangeRate: number = DEFAULT_EXCHANGE_RATE
+): number => {
+  if (!sale || typeof sale.salePrice !== 'number') return 0;
+  // If price is >= 1000 or currency is explicitly MMK, it is already Myanmar Kyat (e.g. 15,000 MMK)
+  if (sale.salePrice >= 1000 || sale.currency === 'MMK') {
+    return sale.salePrice;
+  }
+  // Otherwise if price is in Baht scale (e.g. 110 THB, 80 THB), convert using exchangeRate
+  return Math.round(sale.salePrice * exchangeRate);
+};
+
+export const getSalePriceTHB = (
+  sale: SaleRecord | { salePrice: number; currency?: string } | null | undefined,
+  exchangeRate: number = DEFAULT_EXCHANGE_RATE
+): number => {
+  if (!sale || typeof sale.salePrice !== 'number') return 0;
+  // If currency is explicitly THB and price is in THB range (< 1000)
+  if (sale.currency === 'THB' && sale.salePrice < 1000) {
+    return sale.salePrice;
+  }
+  const mmk = getSalePriceMMK(sale, exchangeRate);
+  return exchangeRate > 0 ? Math.round(mmk / exchangeRate) : Math.round(mmk / 120);
+};
+
 export const fetchLatestTHBRate = async (): Promise<number | null> => {
   try {
     const res = await fetch('https://open.er-api.com/v6/latest/THB');

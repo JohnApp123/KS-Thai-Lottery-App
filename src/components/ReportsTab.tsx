@@ -33,7 +33,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { SaleRecord, Ticket as TicketType } from '../types';
-import { formatCurrency, formatDateBurmese } from '../utils/formatters';
+import { formatCurrency, formatDateBurmese, getSalePriceMMK, getSalePriceTHB } from '../utils/formatters';
 
 interface ReportsTabProps {
   sales: SaleRecord[];
@@ -67,19 +67,37 @@ export const ReportsTab: React.FC<ReportsTabProps> = ({
     return result;
   }, [sales, selectedDrawDate]);
 
-  // Overall Financial Metrics
+  // Overall Financial Metrics - Accurately calculated without double exchange-rate multiplication
   const metrics = useMemo(() => {
     const totalSalesCount = filteredSales.length;
-    const totalRevenueTHB = filteredSales.reduce((sum, s) => sum + s.salePrice, 0);
-    const totalRevenueMMK = Math.round(totalRevenueTHB * exchangeRate);
+    const totalRevenueMMK = filteredSales.reduce(
+      (sum, s) => sum + getSalePriceMMK(s, exchangeRate),
+      0
+    );
+    const totalRevenueTHB = filteredSales.reduce(
+      (sum, s) => sum + getSalePriceTHB(s, exchangeRate),
+      0
+    );
 
     const paidSales = filteredSales.filter((s) => s.paymentStatus === 'paid');
-    const paidRevenueTHB = paidSales.reduce((sum, s) => sum + s.salePrice, 0);
-    const paidRevenueMMK = Math.round(paidRevenueTHB * exchangeRate);
+    const paidRevenueMMK = paidSales.reduce(
+      (sum, s) => sum + getSalePriceMMK(s, exchangeRate),
+      0
+    );
+    const paidRevenueTHB = paidSales.reduce(
+      (sum, s) => sum + getSalePriceTHB(s, exchangeRate),
+      0
+    );
 
     const unpaidSales = filteredSales.filter((s) => s.paymentStatus === 'unpaid');
-    const unpaidRevenueTHB = unpaidSales.reduce((sum, s) => sum + s.salePrice, 0);
-    const unpaidRevenueMMK = Math.round(unpaidRevenueTHB * exchangeRate);
+    const unpaidRevenueMMK = unpaidSales.reduce(
+      (sum, s) => sum + getSalePriceMMK(s, exchangeRate),
+      0
+    );
+    const unpaidRevenueTHB = unpaidSales.reduce(
+      (sum, s) => sum + getSalePriceTHB(s, exchangeRate),
+      0
+    );
 
     // Total tickets in inventory corresponding to draw filter
     const relevantTickets =
@@ -93,7 +111,7 @@ export const ReportsTab: React.FC<ReportsTabProps> = ({
     const sellThroughRate =
       totalTicketsCount > 0 ? Math.round((soldTicketsCount / totalTicketsCount) * 100) : 0;
     const collectionRate =
-      totalRevenueTHB > 0 ? Math.round((paidRevenueTHB / totalRevenueTHB) * 100) : 0;
+      totalRevenueMMK > 0 ? Math.round((paidRevenueMMK / totalRevenueMMK) * 100) : 0;
 
     return {
       totalSalesCount,
@@ -151,8 +169,8 @@ export const ReportsTab: React.FC<ReportsTabProps> = ({
         orderCount: 0,
       };
 
-      const thb = sale.salePrice;
-      const mmk = Math.round(sale.salePrice * exchangeRate);
+      const mmk = getSalePriceMMK(sale, exchangeRate);
+      const thb = getSalePriceTHB(sale, exchangeRate);
 
       existing.totalTHB += thb;
       existing.totalMMK += mmk;
@@ -215,19 +233,27 @@ export const ReportsTab: React.FC<ReportsTabProps> = ({
       const soldTix = cycleTickets.filter((t) => t.status === 'sold').length;
       const availTix = totalTix - soldTix;
 
-      const totalRevTHB = cycleSales.reduce((sum, s) => sum + s.salePrice, 0);
-      const totalRevMMK = Math.round(totalRevTHB * exchangeRate);
+      const totalRevMMK = cycleSales.reduce(
+        (sum, s) => sum + getSalePriceMMK(s, exchangeRate),
+        0
+      );
+      const totalRevTHB = cycleSales.reduce(
+        (sum, s) => sum + getSalePriceTHB(s, exchangeRate),
+        0
+      );
 
+      const paidRevMMK = cycleSales
+        .filter((s) => s.paymentStatus === 'paid')
+        .reduce((sum, s) => sum + getSalePriceMMK(s, exchangeRate), 0);
       const paidRevTHB = cycleSales
         .filter((s) => s.paymentStatus === 'paid')
-        .reduce((sum, s) => sum + s.salePrice, 0);
-      const paidRevMMK = Math.round(paidRevTHB * exchangeRate);
+        .reduce((sum, s) => sum + getSalePriceTHB(s, exchangeRate), 0);
 
+      const unpaidRevMMK = totalRevMMK - paidRevMMK;
       const unpaidRevTHB = totalRevTHB - paidRevTHB;
-      const unpaidRevMMK = Math.round(unpaidRevTHB * exchangeRate);
 
       const sellThrough = totalTix > 0 ? Math.round((soldTix / totalTix) * 100) : 0;
-      const collRate = totalRevTHB > 0 ? Math.round((paidRevTHB / totalRevTHB) * 100) : 0;
+      const collRate = totalRevMMK > 0 ? Math.round((paidRevMMK / totalRevMMK) * 100) : 0;
 
       cycleMap.set(dDate, {
         drawDate: dDate,
