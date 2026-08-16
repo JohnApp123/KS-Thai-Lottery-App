@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { SaleRecord, DrawResult } from '../types';
 import { formatDateBurmese, formatDualPrice, formatMMK, getSalePriceMMK } from '../utils/formatters';
 import { Search, Phone, Ticket as TicketIcon, CheckCircle, AlertCircle, Receipt, Trophy, Sparkles, ShoppingBag, ArrowLeft } from 'lucide-react';
-import { checkTicketWinning } from '../services/thaiLotteryService';
+import { checkTicketWinning, VERIFIED_OFFICIAL_DRAWS } from '../services/thaiLotteryService';
 
 interface CustomerOrderLookupProps {
   sales: SaleRecord[];
@@ -38,7 +38,7 @@ export const CustomerOrderLookup: React.FC<CustomerOrderLookupProps> = ({
 
   // Helper to check if a specific sale won a prize using full official engine
   const checkWinning = (sale: SaleRecord) => {
-    const drawRes = results.find((r) => r.drawDate === sale.drawDate);
+    const drawRes = results.find((r) => r.drawDate === sale.drawDate) || VERIFIED_OFFICIAL_DRAWS[sale.drawDate];
     if (!drawRes || !drawRes.announced) return null;
 
     const winData = checkTicketWinning(sale.ticketNumber, drawRes, exchangeRate);

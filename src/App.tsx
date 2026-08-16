@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Ticket, SaleRecord, DrawResult, PaymentStatus, AppTab, UserRole, AdminUser, PaymentAccount } from './types';
 import { INITIAL_TICKETS, INITIAL_SALES, INITIAL_RESULTS, INITIAL_ADMINS, INITIAL_PAYMENT_ACCOUNTS } from './data/initialData';
 import { Header } from './components/Header';
@@ -70,7 +70,17 @@ export default function App() {
   });
 
   const [results, setResults] = useState<DrawResult[]>(() => {
-    return safeStorage.get<DrawResult[]>('tl_results', INITIAL_RESULTS);
+    const loaded = safeStorage.get<DrawResult[]>('tl_results', INITIAL_RESULTS);
+    if (
+      !Array.isArray(loaded) ||
+      loaded.length === 0 ||
+      loaded.some((r) => r.firstPrize === '095867' || r.firstPrize === '582914' || r.firstPrize === '394820' || r.firstPrize === '439812') ||
+      !loaded.some((r) => r.firstPrize === '004615' && r.secondPrizes?.includes('259239'))
+    ) {
+      safeStorage.set('tl_results', INITIAL_RESULTS);
+      return INITIAL_RESULTS;
+    }
+    return loaded;
   });
 
   const [exchangeRate, setExchangeRate] = useState<number>(() => {
@@ -791,17 +801,29 @@ export default function App() {
     showToast('ရောင်းပြီးသား ထီလက်မှတ်ဟောင်းများကို ရှင်းလင်းပြီးပါပြီ');
   };
 
-  const handleSaveResult = (newResult: DrawResult) => {
-    const existingIdx = results.findIndex((r) => r.drawDate === newResult.drawDate);
-    if (existingIdx >= 0) {
-      const copy = [...results];
-      copy[existingIdx] = newResult;
-      setResults(copy);
-    } else {
-      setResults([...results, newResult]);
-    }
+  const handleSaveResult = useCallback((newResult: DrawResult) => {
+    setResults((prev) => {
+      const existingIdx = prev.findIndex((r) => r.drawDate === newResult.drawDate);
+      if (existingIdx >= 0) {
+        const current = prev[existingIdx];
+        if (
+          current.firstPrize === newResult.firstPrize &&
+          current.backTwoDigits === newResult.backTwoDigits &&
+          JSON.stringify(current.frontThreeDigits) === JSON.stringify(newResult.frontThreeDigits) &&
+          JSON.stringify(current.backThreeDigits) === JSON.stringify(newResult.backThreeDigits) &&
+          JSON.stringify(current.secondPrizes) === JSON.stringify(newResult.secondPrizes) &&
+          JSON.stringify(current.thirdPrizes) === JSON.stringify(newResult.thirdPrizes)
+        ) {
+          return prev;
+        }
+        const copy = [...prev];
+        copy[existingIdx] = newResult;
+        return copy;
+      }
+      return [...prev, newResult];
+    });
     showToast(`${newResult.drawDate} ထွက်ရက်အတွက် ထီပေါက်စဉ်များ သိမ်းဆည်းပြီးပါပြီ`);
-  };
+  }, []);
 
   // Get existing customer names and phones for quick selection in sell modal
   const existingCustomers = Array.from(
@@ -988,6 +1010,8 @@ export default function App() {
             onSaveResults={handleSaveResult}
             exchangeRate={exchangeRate}
             userRole={userRole}
+            initialDrawDate={selectedDrawDate}
+            drawDates={uniqueDrawDates}
             onGoBackToHome={() => setActiveTab(userRole === 'admin' ? 'inventory' : 'self-select')}
           />
         )}

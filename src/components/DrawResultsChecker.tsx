@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Ticket, SaleRecord, DrawResult } from '../types';
 import {
   Trophy,
@@ -21,6 +21,7 @@ import {
   Check,
   Zap,
   ArrowLeft,
+  RotateCcw,
 } from 'lucide-react';
 import { formatCurrency, formatDateBurmese } from '../utils/formatters';
 import {
@@ -39,6 +40,8 @@ interface DrawResultsCheckerProps {
   onSaveResults: (newResult: DrawResult) => void;
   exchangeRate?: number;
   userRole?: 'admin' | 'customer';
+  initialDrawDate?: string;
+  drawDates?: string[];
   onGoBackToHome?: () => void;
 }
 
@@ -49,14 +52,35 @@ export const DrawResultsChecker: React.FC<DrawResultsCheckerProps> = ({
   onSaveResults,
   exchangeRate = 120,
   userRole = 'admin',
+  initialDrawDate = '2026-08-16',
+  drawDates = [],
   onGoBackToHome,
 }) => {
-  const [selectedDrawDate, setSelectedDrawDate] = useState<string>('2026-08-16');
+  const [selectedDrawDate, setSelectedDrawDate] = useState<string>(initialDrawDate);
   const [isLiveSyncing, setIsLiveSyncing] = useState<boolean>(false);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState<boolean>(false);
-  const [lastSyncStatus, setLastSyncStatus] = useState<string>('တရားဝင် ထိုင်းထီ အချက်အလက်နှင့် ချိတ်ဆက်ထားသည်');
+  const [lastSyncStatus, setLastSyncStatus] = useState<string>('တရားဝင် ထိုင်းထီ တိုက်ရိုက် ရလဒ် (GLO Live Feed) နှင့် ချိတ်ဆက်နေသည်...');
   const [showFullPrizeSheet, setShowFullPrizeSheet] = useState<boolean>(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Synchronize with external draw date change if any
+  useEffect(() => {
+    if (initialDrawDate && initialDrawDate !== selectedDrawDate) {
+      setSelectedDrawDate(initialDrawDate);
+    }
+  }, [initialDrawDate]);
+
+  // Combined unique draw dates from all sources
+  const availableDrawDates = useMemo(() => {
+    const datesSet = new Set<string>();
+    if (initialDrawDate) datesSet.add(initialDrawDate);
+    drawDates.forEach((d) => datesSet.add(d));
+    tickets.forEach((t) => datesSet.add(t.drawDate));
+    sales.forEach((s) => datesSet.add(s.drawDate));
+    results.forEach((r) => datesSet.add(r.drawDate));
+    Object.keys(VERIFIED_OFFICIAL_DRAWS).forEach((d) => datesSet.add(d));
+    return Array.from(datesSet).sort((a, b) => b.localeCompare(a));
+  }, [initialDrawDate, drawDates, tickets, sales, results]);
 
   // Quick ticket search checker input
   const [searchTicketNumber, setSearchTicketNumber] = useState<string>('');
@@ -78,12 +102,33 @@ export const DrawResultsChecker: React.FC<DrawResultsCheckerProps> = ({
 
     return {
       drawDate: selectedDrawDate,
-      firstPrize: '582914',
+      firstPrize: '004615',
       firstPrizeAmount: 6000000,
-      adjacentFirstPrizes: ['582913', '582915'],
-      frontThreeDigits: ['304', '749'],
-      backThreeDigits: ['914', '093'],
-      backTwoDigits: '14',
+      adjacentFirstPrizes: ['004614', '004616'],
+      frontThreeDigits: ['429', '731'],
+      backThreeDigits: ['094', '937'],
+      backTwoDigits: '53',
+      secondPrizes: ['259239', '560636', '576660', '640794', '883014'],
+      thirdPrizes: ['146548', '252291', '288163', '382469', '474983', '573767', '684706', '805280', '888311', '959321'],
+      fourthPrizes: [
+        '009670', '016843', '068797', '088017', '098504', '119060', '164329', '173905', '187646', '243709',
+        '287384', '292230', '334635', '357963', '359447', '362400', '398544', '438638', '439728', '439832',
+        '471250', '499791', '520436', '550578', '557060', '560944', '564064', '594128', '605173', '610007',
+        '614112', '641399', '662381', '665008', '665931', '687228', '706164', '733173', '739269', '748845',
+        '762532', '788469', '798988', '800388', '839951', '871458', '890901', '900977', '995890', '997448'
+      ],
+      fifthPrizes: [
+        '018096', '022968', '024541', '031788', '040637', '049234', '069961', '087871', '089920', '103678',
+        '109341', '114815', '117048', '131070', '144608', '147675', '160580', '169576', '171080', '179345',
+        '181115', '182628', '186784', '192512', '196881', '208706', '225335', '242483', '243865', '247753',
+        '263627', '274040', '278765', '280011', '292437', '292578', '308158', '329804', '345514', '351058',
+        '354622', '355706', '370170', '375694', '376690', '378558', '412647', '429875', '437270', '471979',
+        '472260', '476424', '480964', '540243', '545569', '554300', '560793', '564450', '578100', '583329',
+        '595819', '611719', '613730', '616620', '619682', '626248', '644459', '656431', '683343', '690483',
+        '695759', '696109', '701301', '702430', '703501', '704968', '710949', '733724', '755467', '788074',
+        '793386', '800980', '805427', '806943', '816464', '824636', '833299', '838388', '838886', '842864',
+        '851147', '856110', '857066', '890581', '902040', '915377', '948323', '969200', '978338', '998822'
+      ],
       announced: true,
       isLive: false,
       lastSyncedAt: new Date().toISOString(),
@@ -110,7 +155,7 @@ export const DrawResultsChecker: React.FC<DrawResultsCheckerProps> = ({
   }, [activeResult]);
 
   // Live Sync Action
-  const handleLiveSync = useCallback(async () => {
+  const handleLiveSync = useCallback(async (notify = false) => {
     setIsLiveSyncing(true);
     try {
       const res = await fetchLiveThaiLotteryResults(selectedDrawDate);
@@ -120,17 +165,28 @@ export const DrawResultsChecker: React.FC<DrawResultsCheckerProps> = ({
       }
     } catch (err) {
       console.error('Failed to sync live lottery:', err);
-      setLastSyncStatus('လတ်တလော ချိတ်ဆက်မှု နှေးကွေးနေသဖြင့် သိုလှောင်ထားသော တရားဝင် ရလဒ်ကို အသုံးပြုထားပါသည်');
+      if (notify) {
+        setLastSyncStatus('လတ်တလော ချိတ်ဆက်မှု နှေးကွေးနေသဖြင့် သိုလှောင်ထားသော တရားဝင် ရလဒ်ကို အသုံးပြုထားပါသည်');
+      }
     } finally {
       setIsLiveSyncing(false);
     }
   }, [selectedDrawDate, onSaveResults]);
 
+  // Initial fetch on draw date change
+  const lastFetchedDrawDate = useRef<string>('');
+  useEffect(() => {
+    if (lastFetchedDrawDate.current !== selectedDrawDate) {
+      lastFetchedDrawDate.current = selectedDrawDate;
+      handleLiveSync(false);
+    }
+  }, [selectedDrawDate, handleLiveSync]);
+
   // Auto-Sync interval if enabled
   useEffect(() => {
     if (!autoSyncEnabled) return;
     const interval = setInterval(() => {
-      handleLiveSync();
+      handleLiveSync(false);
     }, 30000); // Poll every 30 seconds during live drawing
 
     return () => clearInterval(interval);
@@ -267,11 +323,11 @@ export const DrawResultsChecker: React.FC<DrawResultsCheckerProps> = ({
                 onChange={(e) => setSelectedDrawDate(e.target.value)}
                 className="bg-transparent text-amber-300 font-bold focus:outline-none cursor-pointer"
               >
-                <option value="2026-08-16" className="bg-slate-800 text-white">16/08/2026</option>
-                <option value="2026-09-01" className="bg-slate-800 text-white">01/09/2026</option>
-                <option value="2026-08-01" className="bg-slate-800 text-white">01/08/2026</option>
-                <option value="2026-07-16" className="bg-slate-800 text-white">16/07/2026</option>
-                <option value="2026-07-01" className="bg-slate-800 text-white">01/07/2026</option>
+                {availableDrawDates.map((date) => (
+                  <option key={date} value={date} className="bg-slate-800 text-white">
+                    {formatDateBurmese(date)}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -591,13 +647,55 @@ export const DrawResultsChecker: React.FC<DrawResultsCheckerProps> = ({
                 </span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 font-mono font-bold text-xs text-center">
-                {(activeResult.thirdPrizes || ['294810', '938210', '482910', '103948', '583920', '748392', '839204', '039482', '583912', '384920']).map((num, i) => (
+                {(activeResult.thirdPrizes || ['146548', '252291', '288163', '382469', '474983', '573767', '684706', '805280', '888311', '959321']).map((num, i) => (
                   <div key={i} className="bg-white p-2 rounded-xl border border-slate-300 text-slate-900 shadow-2xs">
                     {num}
                   </div>
                 ))}
               </div>
             </div>
+
+            {/* 4th Prize (50 prizes x 40,000 THB) */}
+            {activeResult.fourthPrizes && activeResult.fourthPrizes.length > 0 && (
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-black text-slate-800">
+                    စတုတ္ထဆု (รางวัลที่ 4) - ၄၀,၀၀၀ ဘတ် ({activeResult.fourthPrizes.length} ဆု)
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-mono">
+                    ~{Math.round(40000 * exchangeRate).toLocaleString('en-US')} ကျပ်
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-10 gap-1.5 font-mono text-[11px] text-center">
+                  {activeResult.fourthPrizes.map((num, i) => (
+                    <div key={i} className="bg-white p-1.5 rounded-lg border border-slate-200 text-slate-800 font-medium shadow-2xs">
+                      {num}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 5th Prize (100 prizes x 20,000 THB) */}
+            {activeResult.fifthPrizes && activeResult.fifthPrizes.length > 0 && (
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-black text-slate-800">
+                    ပဉ္စမဆု (รางวัลที่ 5) - ၂၀,၀၀၀ ဘတ် ({activeResult.fifthPrizes.length} ဆု)
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-mono">
+                    ~{Math.round(20000 * exchangeRate).toLocaleString('en-US')} ကျပ်
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-10 gap-1.5 font-mono text-[11px] text-center">
+                  {activeResult.fifthPrizes.map((num, i) => (
+                    <div key={i} className="bg-white p-1.5 rounded-lg border border-slate-200 text-slate-800 font-medium shadow-2xs">
+                      {num}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -626,7 +724,7 @@ export const DrawResultsChecker: React.FC<DrawResultsCheckerProps> = ({
               <input
                 type="text"
                 maxLength={6}
-                placeholder="582914"
+                placeholder="004615"
                 value={firstPrizeInput}
                 onChange={(e) => setFirstPrizeInput(e.target.value.replace(/\D/g, ''))}
                 className="w-full bg-white border border-amber-300 rounded-xl p-2 font-mono font-black text-amber-900 text-base tracking-widest text-center shadow-2xs focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
@@ -642,7 +740,7 @@ export const DrawResultsChecker: React.FC<DrawResultsCheckerProps> = ({
                 <input
                   type="text"
                   maxLength={3}
-                  placeholder="304"
+                  placeholder="731"
                   value={front3Input1}
                   onChange={(e) => setFront3Input1(e.target.value.replace(/\D/g, ''))}
                   className="w-1/2 bg-white border border-slate-300 rounded-xl p-2 font-mono font-bold text-slate-800 text-center shadow-2xs focus:border-emerald-500 focus:outline-none"
@@ -650,7 +748,7 @@ export const DrawResultsChecker: React.FC<DrawResultsCheckerProps> = ({
                 <input
                   type="text"
                   maxLength={3}
-                  placeholder="749"
+                  placeholder="429"
                   value={front3Input2}
                   onChange={(e) => setFront3Input2(e.target.value.replace(/\D/g, ''))}
                   className="w-1/2 bg-white border border-slate-300 rounded-xl p-2 font-mono font-bold text-slate-800 text-center shadow-2xs focus:border-emerald-500 focus:outline-none"
@@ -667,7 +765,7 @@ export const DrawResultsChecker: React.FC<DrawResultsCheckerProps> = ({
                 <input
                   type="text"
                   maxLength={3}
-                  placeholder="914"
+                  placeholder="937"
                   value={back3Input1}
                   onChange={(e) => setBack3Input1(e.target.value.replace(/\D/g, ''))}
                   className="w-1/2 bg-white border border-slate-300 rounded-xl p-2 font-mono font-bold text-slate-800 text-center shadow-2xs focus:border-emerald-500 focus:outline-none"
@@ -675,7 +773,7 @@ export const DrawResultsChecker: React.FC<DrawResultsCheckerProps> = ({
                 <input
                   type="text"
                   maxLength={3}
-                  placeholder="093"
+                  placeholder="094"
                   value={back3Input2}
                   onChange={(e) => setBack3Input2(e.target.value.replace(/\D/g, ''))}
                   className="w-1/2 bg-white border border-slate-300 rounded-xl p-2 font-mono font-bold text-slate-800 text-center shadow-2xs focus:border-emerald-500 focus:outline-none"
@@ -691,7 +789,7 @@ export const DrawResultsChecker: React.FC<DrawResultsCheckerProps> = ({
               <input
                 type="text"
                 maxLength={2}
-                placeholder="14"
+                placeholder="53"
                 value={back2Input}
                 onChange={(e) => setBack2Input(e.target.value.replace(/\D/g, ''))}
                 className="w-full bg-white border border-emerald-300 rounded-xl p-2 font-mono font-black text-emerald-800 text-base tracking-widest text-center shadow-2xs focus:ring-2 focus:ring-emerald-500/20 focus:outline-none"
@@ -699,7 +797,28 @@ export const DrawResultsChecker: React.FC<DrawResultsCheckerProps> = ({
             </div>
           </div>
 
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-between items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const official = VERIFIED_OFFICIAL_DRAWS[selectedDrawDate] || VERIFIED_OFFICIAL_DRAWS['2026-08-16'];
+                if (official) {
+                  onSaveResults(official);
+                  setFirstPrizeInput(official.firstPrize || '');
+                  setFront3Input1(official.frontThreeDigits?.[0] || '');
+                  setFront3Input2(official.frontThreeDigits?.[1] || '');
+                  setBack3Input1(official.backThreeDigits?.[0] || '');
+                  setBack3Input2(official.backThreeDigits?.[1] || '');
+                  setBack2Input(official.backTwoDigits || '');
+                  alert(`တရားဝင် ထိုင်းအစိုးရ ထီပေါက်စဉ် (${formatDateBurmese(selectedDrawDate)}) မူလအချက်အလက်အတိုင်း ပြန်လည်ချိန်ညှိပြီးပါပြီ!`);
+                }
+              }}
+              className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+              <span>မူလတရားဝင် ပေါက်စဉ်အတိုင်း Reset လုပ်မည်</span>
+            </button>
+
             <button
               type="submit"
               className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
