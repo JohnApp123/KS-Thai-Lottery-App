@@ -33,7 +33,7 @@ import {
   AppSyncState,
   SyncStatus,
 } from './services/supabaseSync';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Trash2, X } from 'lucide-react';
 
 export default function App() {
   // Role State: default to 'customer' view (can toggle to 'admin' via PIN modal in Header)
@@ -124,6 +124,10 @@ export default function App() {
   // Admin Edit Lottery Ticket Modal state
   const [editTicketModalOpen, setEditTicketModalOpen] = useState(false);
   const [ticketToEdit, setTicketToEdit] = useState<Ticket | null>(null);
+
+  // Admin Delete Ticket Confirmation Modal state
+  const [deleteTicketModalOpen, setDeleteTicketModalOpen] = useState(false);
+  const [ticketToDelete, setTicketToDelete] = useState<Ticket | null>(null);
 
   // Admin Payment Verification Modal state (for confirming temporary sold out / reserved tickets with slip screenshots)
   const [verificationModalOpen, setVerificationModalOpen] = useState(false);
@@ -821,13 +825,25 @@ export default function App() {
   };
 
   const handleDeleteSingleTicket = (ticket: Ticket) => {
-    if (confirm(`ထီနံပါတ် "${ticket.number}" ကို စာရင်းမှ ဖျက်ပစ်ရန် သေချာပါသလား?`)) {
-      const remainingTickets = tickets.filter((t) => t.id !== ticket.id);
-      const remainingSales = sales.filter((s) => s.ticketId !== ticket.id && s.ticketNumber !== ticket.number);
-      setTickets(remainingTickets);
-      setSales(remainingSales);
-      persistAndBroadcast({ tickets: remainingTickets, sales: remainingSales });
-      showToast(`ထီနံပါတ် ${ticket.number} ကို စာရင်းမှ ဖျက်ပစ်ပြီးပါပြီ`);
+    setTicketToDelete(ticket);
+    setDeleteTicketModalOpen(true);
+  };
+
+  const handleConfirmDeleteTicket = () => {
+    if (!ticketToDelete) return;
+    const ticketId = ticketToDelete.id;
+    const ticketNum = ticketToDelete.number;
+    const remainingTickets = tickets.filter((t) => t.id !== ticketId);
+    const remainingSales = sales.filter((s) => s.ticketId !== ticketId && s.ticketNumber !== ticketNum);
+    setTickets(remainingTickets);
+    setSales(remainingSales);
+    persistAndBroadcast({ tickets: remainingTickets, sales: remainingSales });
+    showToast(`ထီနံပါတ် ${ticketNum} ကို စာရင်းမှ ဖျက်ပစ်ပြီးပါပြီ`);
+    setDeleteTicketModalOpen(false);
+    setTicketToDelete(null);
+    if (editTicketModalOpen && ticketToEdit?.id === ticketId) {
+      setEditTicketModalOpen(false);
+      setTicketToEdit(null);
     }
   };
 
@@ -1230,6 +1246,7 @@ export default function App() {
             onDeleteAllTickets={handleDeleteAllTickets}
             onDeleteSoldTickets={handleDeleteSoldTickets}
             onEditTicket={handleOpenEditTicket}
+            onDeleteSingleTicket={handleDeleteSingleTicket}
             onNavigateTab={setActiveTab}
             onOpenAddModal={() => setAddModalOpen(true)}
             showToast={showToast}
@@ -1268,6 +1285,7 @@ export default function App() {
         }}
         ticket={ticketToEdit}
         onSaveTicket={handleSaveEditedTicket}
+        onDeleteTicket={handleDeleteSingleTicket}
         exchangeRate={exchangeRate}
         drawDates={uniqueDrawDates}
       />
@@ -1331,6 +1349,84 @@ export default function App() {
         onRejectReservation={handleRejectPaymentVerification}
         onUpdateSlipImage={handleUpdateSlipImage}
       />
+
+      {/* In-App Delete Ticket Confirmation Dialog */}
+      {deleteTicketModalOpen && ticketToDelete && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-150">
+            <div className="bg-slate-900 text-white p-4 flex items-center justify-between border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-rose-600 text-white flex items-center justify-center font-bold">
+                  <Trash2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">
+                    ထီလက်မှတ် ဖျက်ရန် အတည်ပြုပါ
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Delete Ticket Confirmation
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteTicketModalOpen(false);
+                  setTicketToDelete(null);
+                }}
+                className="p-1.5 text-slate-400 hover:text-white bg-slate-800 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="bg-rose-50 border border-rose-200 rounded-xl p-3.5 space-y-2 text-center">
+                <p className="text-xs text-slate-600">
+                  ဖျက်ပစ်မည့် ထီနံပါတ်
+                </p>
+                <div className="text-2xl font-black font-mono tracking-widest text-slate-900 bg-white py-2 px-4 rounded-lg border border-slate-200 shadow-2xs inline-block">
+                  {ticketToDelete.number}
+                </div>
+                <div className="flex justify-center items-center gap-2 text-xs text-slate-600 font-medium">
+                  {ticketToDelete.serialCode && (
+                    <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 font-mono font-bold">
+                      🔖 {ticketToDelete.serialCode}
+                    </span>
+                  )}
+                  <span>ထွက်ရက်: {ticketToDelete.drawDate}</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-600 leading-relaxed text-center">
+                ဤထီလက်မှတ်ကို စာရင်းမှ ဖျက်ပစ်ရန် သေချာပါသလား? ဖျက်ပြီးပါက စာရင်းမှ လုံးဝ ပျက်ပြယ်သွားပါမည်။
+              </p>
+
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteTicketModalOpen(false);
+                    setTicketToDelete(null);
+                  }}
+                  className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer border border-slate-200"
+                >
+                  မဖျက်တော့ပါ
+                </button>
+                <button
+                  type="button"
+                  id="btn-confirm-delete-ticket"
+                  onClick={handleConfirmDeleteTicket}
+                  className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>သေချာသည် ဖျက်မည်</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="bg-slate-900 border-t border-slate-800 text-slate-500 text-xs py-4 text-center">

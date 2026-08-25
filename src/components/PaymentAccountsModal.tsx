@@ -72,6 +72,7 @@ export const PaymentAccountsModal: React.FC<PaymentAccountsModalProps> = ({
   // QR Preview Lightbox
   const [zoomedQr, setZoomedQr] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [accountToDelete, setAccountToDelete] = useState<PaymentAccount | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Synchronize local accounts when prop accounts change or modal opens
@@ -210,16 +211,23 @@ export const PaymentAccountsModal: React.FC<PaymentAccountsModalProps> = ({
 
   const handleDelete = (id: string) => {
     const target = localAccounts.find((a) => a.id === id);
-    const targetName = target ? target.accountName : 'ဤအကောင့်';
-    if (confirm(`${targetName} (${target?.provider || 'အကောင့်'}) ကို ဖျက်ရန် သေချာပါသလား?`)) {
-      const updated = localAccounts.filter((a) => a.id !== id);
-      commitChanges(updated);
-      showFeedback(`${targetName} ကို ဖျက်လိုက်ပါပြီ`);
-      if (editingId === id) {
-        setEditingId(null);
-        setIsAddingNew(false);
-      }
+    if (target) {
+      setAccountToDelete(target);
     }
+  };
+
+  const handleConfirmDeleteAccount = () => {
+    if (!accountToDelete) return;
+    const id = accountToDelete.id;
+    const targetName = accountToDelete.accountName;
+    const updated = localAccounts.filter((a) => a.id !== id);
+    commitChanges(updated);
+    showFeedback(`${targetName} ကို ဖျက်လိုက်ပါပြီ`);
+    if (editingId === id) {
+      setEditingId(null);
+      setIsAddingNew(false);
+    }
+    setAccountToDelete(null);
   };
 
   const handleToggleActive = (id: string) => {
@@ -693,6 +701,44 @@ export const PaymentAccountsModal: React.FC<PaymentAccountsModalProps> = ({
             >
               ပိတ်မည်
             </button>
+          </div>
+        </div>
+      )}
+      {/* Delete Account Confirmation Dialog */}
+      {accountToDelete && (
+        <div className="fixed inset-0 z-60 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl p-5 space-y-4">
+            <div className="flex items-center gap-2.5 text-rose-600">
+              <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center">
+                <Trash2 className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-slate-900">အကောင့်ဖျက်ရန် အတည်ပြုပါ</h4>
+                <p className="text-[11px] text-slate-500">Delete Account Confirmation</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              <strong className="text-slate-800">"{accountToDelete.accountName}"</strong> ({accountToDelete.provider}) အကောင့်အား ဖျက်ပစ်ရန် သေချာပါသလား?
+            </p>
+
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setAccountToDelete(null)}
+                className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs cursor-pointer"
+              >
+                မဖျက်တော့ပါ
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteAccount}
+                className="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>ဖျက်မည်</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

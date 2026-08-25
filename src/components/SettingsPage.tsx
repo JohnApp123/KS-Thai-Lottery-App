@@ -66,6 +66,7 @@ interface SettingsPageProps {
   onDeleteAllTickets?: () => void;
   onDeleteSoldTickets?: () => void;
   onEditTicket?: (ticket: TicketType) => void;
+  onDeleteSingleTicket?: (ticket: TicketType) => void;
   onNavigateTab: (tab: AppTab) => void;
   onOpenAddModal: () => void;
   showToast: (msg: string) => void;
@@ -103,6 +104,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onDeleteAllTickets,
   onDeleteSoldTickets,
   onEditTicket,
+  onDeleteSingleTicket,
   onNavigateTab,
   onOpenAddModal,
   showToast,
@@ -1110,10 +1112,20 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                           <button
                             type="button"
                             onClick={() => onEditTicket(t)}
-                            className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs rounded-lg border border-emerald-200 flex items-center gap-1 cursor-pointer transition-colors"
+                            className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs rounded-lg border border-amber-200 flex items-center gap-1 cursor-pointer transition-colors"
                           >
                             <Edit3 className="w-3 h-3" />
                             <span>ပြင်မည် (Edit)</span>
+                          </button>
+                        )}
+                        {onDeleteSingleTicket && (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteSingleTicket(t)}
+                            className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-lg border border-rose-200 flex items-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>ဖျက်မည်</span>
                           </button>
                         )}
                       </div>

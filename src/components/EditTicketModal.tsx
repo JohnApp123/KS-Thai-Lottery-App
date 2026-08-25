@@ -8,6 +8,7 @@ interface EditTicketModalProps {
   onClose: () => void;
   ticket: Ticket | null;
   onSaveTicket: (updatedTicket: Ticket) => void;
+  onDeleteTicket?: (ticket: Ticket) => void;
   exchangeRate?: number;
   drawDates?: string[];
 }
@@ -17,6 +18,7 @@ export const EditTicketModal: React.FC<EditTicketModalProps> = ({
   onClose,
   ticket,
   onSaveTicket,
+  onDeleteTicket,
   exchangeRate = 120,
   drawDates = [],
 }) => {
@@ -29,6 +31,7 @@ export const EditTicketModal: React.FC<EditTicketModalProps> = ({
   const [status, setStatus] = useState<'available' | 'reserved' | 'sold'>('available');
   const [notes, setNotes] = useState('');
   const [imageUrl, setImageUrl] = useState<string>('');
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (ticket) {
@@ -41,6 +44,7 @@ export const EditTicketModal: React.FC<EditTicketModalProps> = ({
       setStatus(ticket.status || 'available');
       setNotes(ticket.notes || '');
       setImageUrl(ticket.imageUrl || '');
+      setValidationError(null);
     }
   }, [ticket]);
 
@@ -99,7 +103,7 @@ export const EditTicketModal: React.FC<EditTicketModalProps> = ({
 
     const cleanNum = ticketNumber.trim();
     if (!cleanNum || cleanNum.length < 6) {
-      alert('ကျေးဇူးပြု၍ ၆ လုံးပြည့် ထီနံပါတ် မှန်ကန်စွာ ထည့်သွင်းပါ');
+      setValidationError('ကျေးဇူးပြု၍ ၆ လုံးပြည့် ထီနံပါတ် မှန်ကန်စွာ ထည့်သွင်းပါ');
       return;
     }
 
@@ -119,7 +123,6 @@ export const EditTicketModal: React.FC<EditTicketModalProps> = ({
     };
 
     onSaveTicket(updated);
-    onClose();
   };
 
   return (
@@ -151,6 +154,13 @@ export const EditTicketModal: React.FC<EditTicketModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          {validationError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-bold flex items-center gap-2">
+              <X className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>{validationError}</span>
+            </div>
+          )}
+
           {/* Ticket Number & Serial */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -162,7 +172,10 @@ export const EditTicketModal: React.FC<EditTicketModalProps> = ({
                 required
                 maxLength={6}
                 value={ticketNumber}
-                onChange={(e) => setTicketNumber(e.target.value.replace(/\D/g, ''))}
+                onChange={(e) => {
+                  setTicketNumber(e.target.value.replace(/\D/g, ''));
+                  if (validationError) setValidationError(null);
+                }}
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-base font-mono font-black tracking-widest text-amber-800 focus:outline-none focus:bg-white focus:border-amber-500"
                 placeholder="582914"
               />
@@ -381,21 +394,40 @@ export const EditTicketModal: React.FC<EditTicketModalProps> = ({
           </div>
 
           {/* Modal Actions */}
-          <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer border border-slate-200"
-            >
-              မလုပ်တော့ပါ
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95"
-            >
-              <Check className="w-4 h-4 stroke-[2.5]" />
-              <span>ပြင်ဆင်မှုများ သိမ်းဆည်းမည်</span>
-            </button>
+          <div className="pt-3 flex items-center justify-between gap-2 border-t border-slate-100 flex-wrap">
+            {onDeleteTicket ? (
+              <button
+                type="button"
+                id="btn-modal-delete-ticket"
+                onClick={() => {
+                  onDeleteTicket(ticket);
+                }}
+                className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl text-xs flex items-center gap-1.5 border border-rose-200 cursor-pointer transition-colors"
+              >
+                <Trash2 className="w-4 h-4 text-rose-600" />
+                <span>ထီလက်မှတ် ဖျက်မည်</span>
+              </button>
+            ) : (
+              <div />
+            )}
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer border border-slate-200"
+              >
+                မလုပ်တော့ပါ
+              </button>
+              <button
+                type="submit"
+                id="btn-modal-save-ticket"
+                className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95"
+              >
+                <Check className="w-4 h-4 stroke-[2.5]" />
+                <span>ပြင်ဆင်မှုများ သိမ်းဆည်းမည်</span>
+              </button>
+            </div>
           </div>
         </form>
       </div>

@@ -118,12 +118,13 @@ export const TicketCard: React.FC<TicketCardProps> = ({
             {onEditTicket && (
               <button
                 type="button"
+                id={`btn-edit-ticket-${ticket.id}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onEditTicket(ticket);
                 }}
                 title="ဤထီလက်မှတ် အချက်အလက်များကို ပြင်ဆင်မည်"
-                className="p-1 rounded-md text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-500 hover:text-amber-700 hover:bg-amber-100/80 active:scale-95 transition-all cursor-pointer border border-transparent hover:border-amber-200"
               >
                 <Edit3 className="w-3.5 h-3.5" />
               </button>
@@ -132,12 +133,13 @@ export const TicketCard: React.FC<TicketCardProps> = ({
             {onDeleteTicket && (
               <button
                 type="button"
+                id={`btn-delete-ticket-${ticket.id}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onDeleteTicket(ticket);
                 }}
                 title="ဤထီလက်မှတ်ကို စာရင်းမှ ဖျက်ပစ်မည်"
-                className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-100/80 active:scale-95 transition-all cursor-pointer border border-transparent hover:border-rose-200"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>

@@ -68,6 +68,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<'all' | 'paid' | 'unpaid' | 'pending'>('all');
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+  const [saleToCancel, setSaleToCancel] = useState<SaleRecord | null>(null);
   
   // Date Filters
   const [filterDrawDate, setFilterDrawDate] = useState<string>(selectedDrawDate || 'all');
@@ -799,11 +800,9 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                                   <Eye className="w-3.5 h-3.5 text-amber-600" />
                                 </button>
                                 <button
-                                  onClick={() => {
-                                    if (confirm(`ထီနံပါတ် ${sale.ticketNumber} ကို ရောင်းရရှိမှုမှ ဖျက်သိမ်းပြီး ပြန်လည်ရောင်းရန် ထီစာရင်းသို့ ပြန်ထည့်မှာ သေချာပါသလား?`)) {
-                                      onCancelSale(sale.id);
-                                    }
-                                  }}
+                                  type="button"
+                                  id={`btn-cancel-sale-${sale.id}`}
+                                  onClick={() => setSaleToCancel(sale)}
                                   className="p-1.5 text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors cursor-pointer border border-rose-200"
                                   title="ရောင်းရရှိမှု ဖျက်ပြီး ထီစာရင်းသို့ ပြန်သွင်းမည်"
                                 >
@@ -981,11 +980,9 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                             </button>
 
                             <button
-                              onClick={() => {
-                                if (confirm(`ထီနံပါတ် ${sale.ticketNumber} ကို ရောင်းရရှိမှုမှ ဖျက်သိမ်းပြီး ပြန်လည်ရောင်းရန် ထီစာရင်းသို့ ပြန်ထည့်မှာ သေချာပါသလား?`)) {
-                                  onCancelSale(sale.id);
-                                }
-                              }}
+                              type="button"
+                              id={`btn-table-cancel-sale-${sale.id}`}
+                              onClick={() => setSaleToCancel(sale)}
                               className="p-1.5 text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors cursor-pointer border border-rose-200"
                               title="ရောင်းရရှိမှု ဖျက်ပြီး ထီစာရင်းသို့ ပြန်သွင်းမည်"
                             >
@@ -1044,6 +1041,75 @@ export const SalesTable: React.FC<SalesTableProps> = ({
               >
                 သေချာသည်၊ Reset ချမည်
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Undo / Cancel Sale Confirmation Dialog */}
+      {saleToCancel && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-150">
+            <div className="bg-slate-900 text-white p-4 flex items-center justify-between border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-rose-600 text-white flex items-center justify-center font-bold">
+                  <Undo2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">
+                    ရောင်းရရှိမှု ဖျက်သိမ်းရန် အတည်ပြုပါ
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Cancel Sale & Restore Ticket
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSaleToCancel(null)}
+                className="p-1.5 text-slate-400 hover:text-white bg-slate-800 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 space-y-2 text-center">
+                <p className="text-xs text-slate-600">
+                  ပြန်လည်စာရင်းသွင်းမည့် ထီနံပါတ်
+                </p>
+                <div className="text-2xl font-black font-mono tracking-widest text-slate-900 bg-white py-2 px-4 rounded-lg border border-slate-200 shadow-2xs inline-block">
+                  {saleToCancel.ticketNumber}
+                </div>
+                <p className="text-xs text-slate-600">
+                  ဝယ်ယူသူ: <span className="font-bold text-slate-800">{saleToCancel.customerName}</span>
+                </p>
+              </div>
+
+              <p className="text-xs text-slate-600 leading-relaxed text-center">
+                ဤထီနံပါတ် ရောင်းရရှိမှုမှတ်တမ်းကို ဖျက်သိမ်းပြီး ထီစာရင်းထဲသို့ ပြန်လည်ရောင်းချနိုင်ရန် ပြန်လည်ထည့်သွင်းမှာ သေချာပါသလား?
+              </p>
+
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setSaleToCancel(null)}
+                  className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer border border-slate-200"
+                >
+                  မဖျက်တော့ပါ
+                </button>
+                <button
+                  type="button"
+                  id="btn-confirm-cancel-sale"
+                  onClick={() => {
+                    onCancelSale(saleToCancel.id);
+                    setSaleToCancel(null);
+                  }}
+                  className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95"
+                >
+                  <Undo2 className="w-4 h-4" />
+                  <span>သေချာသည် ဖျက်သိမ်းမည်</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
