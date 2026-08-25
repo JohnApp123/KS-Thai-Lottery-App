@@ -27,9 +27,8 @@ import { fetchLatestTHBRate, getSalePriceMMK } from './utils/formatters';
 import { safeStorage } from './utils/storage';
 import {
   fetchSupabaseData,
-  saveRecordToSupabase,
+  saveEntireStateToSupabase,
   subscribeToSupabaseRealtime,
-  pushFullStateToSupabase,
   SyncStatus,
 } from './services/supabaseSync';
 import { CheckCircle2 } from 'lucide-react';
@@ -42,11 +41,7 @@ export default function App() {
 
   // Load state from LocalStorage or fallback to INITIAL mock data
   const [admins, setAdmins] = useState<AdminUser[]>(() => {
-    const loaded = safeStorage.get<AdminUser[]>('tl_admins', INITIAL_ADMINS);
-    if (Array.isArray(loaded) && (loaded.some((a) => a.name.includes('Owner-') || a.name.includes('ဦးကျော်') || a.name.includes('ကိုစိုး') || a.pin === '1234') || loaded.length === 0)) {
-      return INITIAL_ADMINS;
-    }
-    return loaded;
+    return safeStorage.get<AdminUser[]>('tl_admins', INITIAL_ADMINS);
   });
 
   const [activeAdminId, setActiveAdminId] = useState<string>(() => {
@@ -54,11 +49,7 @@ export default function App() {
   });
 
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>(() => {
-    const loaded = safeStorage.get<PaymentAccount[]>('tl_payment_accounts', INITIAL_PAYMENT_ACCOUNTS);
-    if (Array.isArray(loaded) && (loaded.some((a) => a.accountName.includes('ဦးကျော်') || a.accountName.includes('ဒေါ်မြတ်') || a.accountNumber.includes('09791234567') || a.accountNumber.includes('******9569')) || loaded.length === 0)) {
-      return INITIAL_PAYMENT_ACCOUNTS;
-    }
-    return loaded;
+    return safeStorage.get<PaymentAccount[]>('tl_payment_accounts', INITIAL_PAYMENT_ACCOUNTS);
   });
 
   const [tickets, setTickets] = useState<Ticket[]>(() => {
@@ -70,17 +61,7 @@ export default function App() {
   });
 
   const [results, setResults] = useState<DrawResult[]>(() => {
-    const loaded = safeStorage.get<DrawResult[]>('tl_results', INITIAL_RESULTS);
-    if (
-      !Array.isArray(loaded) ||
-      loaded.length === 0 ||
-      loaded.some((r) => r.firstPrize === '095867' || r.firstPrize === '582914' || r.firstPrize === '394820' || r.firstPrize === '439812') ||
-      !loaded.some((r) => r.firstPrize === '004615' && r.secondPrizes?.includes('259239'))
-    ) {
-      safeStorage.set('tl_results', INITIAL_RESULTS);
-      return INITIAL_RESULTS;
-    }
-    return loaded;
+    return safeStorage.get<DrawResult[]>('tl_results', INITIAL_RESULTS);
   });
 
   const [exchangeRate, setExchangeRate] = useState<number>(() => {
@@ -159,22 +140,49 @@ export default function App() {
         const cloudData = await fetchSupabaseData();
         if (cloudData && Object.keys(cloudData).length > 0) {
           isRemoteSyncRef.current = true;
-          if (cloudData.tickets) setTickets(cloudData.tickets);
-          if (cloudData.sales) setSales(cloudData.sales);
-          if (cloudData.results) setResults(cloudData.results);
-          if (cloudData.paymentAccounts) setPaymentAccounts(cloudData.paymentAccounts);
-          if (cloudData.admins) setAdmins(cloudData.admins);
-          if (cloudData.selectedDrawDate) setSelectedDrawDate(cloudData.selectedDrawDate);
-          if (typeof cloudData.exchangeRate === 'number') setExchangeRate(cloudData.exchangeRate);
-          if (typeof cloudData.fixedTicketPriceMMK === 'number') setFixedTicketPriceMMK(cloudData.fixedTicketPriceMMK);
-          if (cloudData.archivedDrawDates) setArchivedDrawDates(cloudData.archivedDrawDates);
+          if (cloudData.tickets && Array.isArray(cloudData.tickets)) {
+            setTickets(cloudData.tickets);
+            safeStorage.set('tl_tickets', cloudData.tickets);
+          }
+          if (cloudData.sales && Array.isArray(cloudData.sales)) {
+            setSales(cloudData.sales);
+            safeStorage.set('tl_sales', cloudData.sales);
+          }
+          if (cloudData.results && Array.isArray(cloudData.results)) {
+            setResults(cloudData.results);
+            safeStorage.set('tl_results', cloudData.results);
+          }
+          if (cloudData.paymentAccounts && Array.isArray(cloudData.paymentAccounts)) {
+            setPaymentAccounts(cloudData.paymentAccounts);
+            safeStorage.set('tl_payment_accounts', cloudData.paymentAccounts);
+          }
+          if (cloudData.admins && Array.isArray(cloudData.admins)) {
+            setAdmins(cloudData.admins);
+            safeStorage.set('tl_admins', cloudData.admins);
+          }
+          if (cloudData.selectedDrawDate) {
+            setSelectedDrawDate(cloudData.selectedDrawDate);
+            safeStorage.set('tl_selected_draw_date', cloudData.selectedDrawDate);
+          }
+          if (typeof cloudData.exchangeRate === 'number') {
+            setExchangeRate(cloudData.exchangeRate);
+            safeStorage.set('tl_exchange_rate', cloudData.exchangeRate.toString());
+          }
+          if (typeof cloudData.fixedTicketPriceMMK === 'number') {
+            setFixedTicketPriceMMK(cloudData.fixedTicketPriceMMK);
+            safeStorage.set('tl_fixed_ticket_price_mmk', cloudData.fixedTicketPriceMMK.toString());
+          }
+          if (cloudData.archivedDrawDates && Array.isArray(cloudData.archivedDrawDates)) {
+            setArchivedDrawDates(cloudData.archivedDrawDates);
+            safeStorage.set('tl_archived_draw_dates', cloudData.archivedDrawDates);
+          }
           setTimeout(() => {
             isRemoteSyncRef.current = false;
           }, 300);
           setSyncStatus('connected');
         } else {
           // Table is clean/new, push current state to seed Supabase database
-          await pushFullStateToSupabase({
+          await saveEntireStateToSupabase({
             tickets,
             sales,
             results,
@@ -188,18 +196,45 @@ export default function App() {
           setSyncStatus('connected');
         }
 
-        // Subscribe to live Postgres changes on `lottery_data`
+        // Subscribe to live Postgres changes on `lottery_data` table
         unsubscribe = subscribeToSupabaseRealtime((updated) => {
           isRemoteSyncRef.current = true;
-          if (updated.tickets) setTickets(updated.tickets);
-          if (updated.sales) setSales(updated.sales);
-          if (updated.results) setResults(updated.results);
-          if (updated.paymentAccounts) setPaymentAccounts(updated.paymentAccounts);
-          if (updated.admins) setAdmins(updated.admins);
-          if (updated.selectedDrawDate) setSelectedDrawDate(updated.selectedDrawDate);
-          if (typeof updated.exchangeRate === 'number') setExchangeRate(updated.exchangeRate);
-          if (typeof updated.fixedTicketPriceMMK === 'number') setFixedTicketPriceMMK(updated.fixedTicketPriceMMK);
-          if (updated.archivedDrawDates) setArchivedDrawDates(updated.archivedDrawDates);
+          if (updated.tickets && Array.isArray(updated.tickets)) {
+            setTickets(updated.tickets);
+            safeStorage.set('tl_tickets', updated.tickets);
+          }
+          if (updated.sales && Array.isArray(updated.sales)) {
+            setSales(updated.sales);
+            safeStorage.set('tl_sales', updated.sales);
+          }
+          if (updated.results && Array.isArray(updated.results)) {
+            setResults(updated.results);
+            safeStorage.set('tl_results', updated.results);
+          }
+          if (updated.paymentAccounts && Array.isArray(updated.paymentAccounts)) {
+            setPaymentAccounts(updated.paymentAccounts);
+            safeStorage.set('tl_payment_accounts', updated.paymentAccounts);
+          }
+          if (updated.admins && Array.isArray(updated.admins)) {
+            setAdmins(updated.admins);
+            safeStorage.set('tl_admins', updated.admins);
+          }
+          if (updated.selectedDrawDate) {
+            setSelectedDrawDate(updated.selectedDrawDate);
+            safeStorage.set('tl_selected_draw_date', updated.selectedDrawDate);
+          }
+          if (typeof updated.exchangeRate === 'number') {
+            setExchangeRate(updated.exchangeRate);
+            safeStorage.set('tl_exchange_rate', updated.exchangeRate.toString());
+          }
+          if (typeof updated.fixedTicketPriceMMK === 'number') {
+            setFixedTicketPriceMMK(updated.fixedTicketPriceMMK);
+            safeStorage.set('tl_fixed_ticket_price_mmk', updated.fixedTicketPriceMMK.toString());
+          }
+          if (updated.archivedDrawDates && Array.isArray(updated.archivedDrawDates)) {
+            setArchivedDrawDates(updated.archivedDrawDates);
+            safeStorage.set('tl_archived_draw_dates', updated.archivedDrawDates);
+          }
           setTimeout(() => {
             isRemoteSyncRef.current = false;
           }, 300);
@@ -225,15 +260,42 @@ export default function App() {
     const cloudData = await fetchSupabaseData();
     if (cloudData) {
       isRemoteSyncRef.current = true;
-      if (cloudData.tickets) setTickets(cloudData.tickets);
-      if (cloudData.sales) setSales(cloudData.sales);
-      if (cloudData.results) setResults(cloudData.results);
-      if (cloudData.paymentAccounts) setPaymentAccounts(cloudData.paymentAccounts);
-      if (cloudData.admins) setAdmins(cloudData.admins);
-      if (cloudData.selectedDrawDate) setSelectedDrawDate(cloudData.selectedDrawDate);
-      if (typeof cloudData.exchangeRate === 'number') setExchangeRate(cloudData.exchangeRate);
-      if (typeof cloudData.fixedTicketPriceMMK === 'number') setFixedTicketPriceMMK(cloudData.fixedTicketPriceMMK);
-      if (cloudData.archivedDrawDates) setArchivedDrawDates(cloudData.archivedDrawDates);
+      if (cloudData.tickets && Array.isArray(cloudData.tickets)) {
+        setTickets(cloudData.tickets);
+        safeStorage.set('tl_tickets', cloudData.tickets);
+      }
+      if (cloudData.sales && Array.isArray(cloudData.sales)) {
+        setSales(cloudData.sales);
+        safeStorage.set('tl_sales', cloudData.sales);
+      }
+      if (cloudData.results && Array.isArray(cloudData.results)) {
+        setResults(cloudData.results);
+        safeStorage.set('tl_results', cloudData.results);
+      }
+      if (cloudData.paymentAccounts && Array.isArray(cloudData.paymentAccounts)) {
+        setPaymentAccounts(cloudData.paymentAccounts);
+        safeStorage.set('tl_payment_accounts', cloudData.paymentAccounts);
+      }
+      if (cloudData.admins && Array.isArray(cloudData.admins)) {
+        setAdmins(cloudData.admins);
+        safeStorage.set('tl_admins', cloudData.admins);
+      }
+      if (cloudData.selectedDrawDate) {
+        setSelectedDrawDate(cloudData.selectedDrawDate);
+        safeStorage.set('tl_selected_draw_date', cloudData.selectedDrawDate);
+      }
+      if (typeof cloudData.exchangeRate === 'number') {
+        setExchangeRate(cloudData.exchangeRate);
+        safeStorage.set('tl_exchange_rate', cloudData.exchangeRate.toString());
+      }
+      if (typeof cloudData.fixedTicketPriceMMK === 'number') {
+        setFixedTicketPriceMMK(cloudData.fixedTicketPriceMMK);
+        safeStorage.set('tl_fixed_ticket_price_mmk', cloudData.fixedTicketPriceMMK.toString());
+      }
+      if (cloudData.archivedDrawDates && Array.isArray(cloudData.archivedDrawDates)) {
+        setArchivedDrawDates(cloudData.archivedDrawDates);
+        safeStorage.set('tl_archived_draw_dates', cloudData.archivedDrawDates);
+      }
       setTimeout(() => {
         isRemoteSyncRef.current = false;
       }, 300);
@@ -249,60 +311,9 @@ export default function App() {
     safeStorage.set('tl_user_role', userRole);
   }, [userRole]);
 
-  // Sync to LocalStorage & Supabase Database whenever state changes
-  useEffect(() => {
-    safeStorage.set('tl_admins', admins);
-    if (!isRemoteSyncRef.current && isInitialLoadDoneRef.current) {
-      saveRecordToSupabase('admins', admins);
-    }
-  }, [admins]);
-
   useEffect(() => {
     safeStorage.set('tl_active_admin_id', activeAdminId);
   }, [activeAdminId]);
-
-  useEffect(() => {
-    safeStorage.set('tl_payment_accounts', paymentAccounts);
-    if (!isRemoteSyncRef.current && isInitialLoadDoneRef.current) {
-      saveRecordToSupabase('payment_accounts', paymentAccounts);
-    }
-  }, [paymentAccounts]);
-
-  useEffect(() => {
-    safeStorage.set('tl_tickets', tickets);
-    if (!isRemoteSyncRef.current && isInitialLoadDoneRef.current) {
-      saveRecordToSupabase('tickets', tickets);
-    }
-  }, [tickets]);
-
-  useEffect(() => {
-    safeStorage.set('tl_sales', sales);
-    if (!isRemoteSyncRef.current && isInitialLoadDoneRef.current) {
-      saveRecordToSupabase('sales', sales);
-    }
-  }, [sales]);
-
-  useEffect(() => {
-    safeStorage.set('tl_results', results);
-    if (!isRemoteSyncRef.current && isInitialLoadDoneRef.current) {
-      saveRecordToSupabase('results', results);
-    }
-  }, [results]);
-
-  useEffect(() => {
-    safeStorage.set('tl_exchange_rate', exchangeRate.toString());
-    safeStorage.set('tl_fixed_ticket_price_mmk', fixedTicketPriceMMK.toString());
-    safeStorage.set('tl_archived_draw_dates', archivedDrawDates);
-    safeStorage.set('tl_selected_draw_date', selectedDrawDate);
-    if (!isRemoteSyncRef.current && isInitialLoadDoneRef.current) {
-      saveRecordToSupabase('pricing', {
-        exchangeRate,
-        fixedTicketPriceMMK,
-        selectedDrawDate,
-        archivedDrawDates,
-      });
-    }
-  }, [exchangeRate, fixedTicketPriceMMK, archivedDrawDates, selectedDrawDate]);
 
   useEffect(() => {
     safeStorage.set('tl_active_tab', activeTab);
@@ -311,6 +322,44 @@ export default function App() {
   useEffect(() => {
     safeStorage.set('tl_inventory_status_filter', inventoryStatusFilter);
   }, [inventoryStatusFilter]);
+
+  // Sync to LocalStorage & Supabase Database immediately whenever any state changes
+  useEffect(() => {
+    safeStorage.set('tl_admins', admins);
+    safeStorage.set('tl_payment_accounts', paymentAccounts);
+    safeStorage.set('tl_tickets', tickets);
+    safeStorage.set('tl_sales', sales);
+    safeStorage.set('tl_results', results);
+    safeStorage.set('tl_exchange_rate', exchangeRate.toString());
+    safeStorage.set('tl_fixed_ticket_price_mmk', fixedTicketPriceMMK.toString());
+    safeStorage.set('tl_archived_draw_dates', archivedDrawDates);
+    safeStorage.set('tl_selected_draw_date', selectedDrawDate);
+
+    // Save entire state into Supabase 'lottery_data' table (id: 'current_lottery_state')
+    if (!isRemoteSyncRef.current && isInitialLoadDoneRef.current) {
+      saveEntireStateToSupabase({
+        tickets,
+        sales,
+        results,
+        paymentAccounts,
+        admins,
+        selectedDrawDate,
+        exchangeRate,
+        fixedTicketPriceMMK,
+        archivedDrawDates,
+      });
+    }
+  }, [
+    tickets,
+    sales,
+    results,
+    paymentAccounts,
+    admins,
+    selectedDrawDate,
+    exchangeRate,
+    fixedTicketPriceMMK,
+    archivedDrawDates,
+  ]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
