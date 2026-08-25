@@ -105,9 +105,17 @@ export const CustomerSelfSelection: React.FC<CustomerSelfSelectionProps> = ({
     paymentAccounts.find((a) => a.id === selectedAccountId) || activeAccounts[0];
 
   // Active tickets for customer view (available or reserved, excluding past archived draw dates and sold)
+  const hasTicketsForDrawDate =
+    drawDate === 'all' ||
+    tickets.some((t) => t.drawDate === drawDate && !archivedDrawDates.includes(t.drawDate));
+
+  const activeDrawDate = hasTicketsForDrawDate
+    ? drawDate
+    : tickets.find((t) => !archivedDrawDates.includes(t.drawDate))?.drawDate || 'all';
+
   const displayableTickets = tickets.filter((t) => {
     if (archivedDrawDates.includes(t.drawDate)) return false;
-    if (drawDate !== 'all' && t.drawDate !== drawDate) return false;
+    if (activeDrawDate !== 'all' && t.drawDate !== activeDrawDate) return false;
     if (ticketAvailabilityFilter === 'available') return t.status === 'available';
     if (ticketAvailabilityFilter === 'reserved') return t.status === 'reserved';
     return t.status === 'available' || t.status === 'reserved';
@@ -125,14 +133,14 @@ export const CustomerSelfSelection: React.FC<CustomerSelfSelectionProps> = ({
     (t) =>
       t.status === 'available' &&
       !archivedDrawDates.includes(t.drawDate) &&
-      (drawDate === 'all' || t.drawDate === drawDate)
+      (activeDrawDate === 'all' || t.drawDate === activeDrawDate)
   ).length;
 
   const reservedCount = tickets.filter(
     (t) =>
       t.status === 'reserved' &&
       !archivedDrawDates.includes(t.drawDate) &&
-      (drawDate === 'all' || t.drawDate === drawDate)
+      (activeDrawDate === 'all' || t.drawDate === activeDrawDate)
   ).length;
 
   const toggleCartTicket = (ticket: Ticket) => {

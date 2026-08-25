@@ -23,6 +23,8 @@ import {
   Archive,
   Info,
   ArrowLeft,
+  Edit3,
+  Search,
 } from 'lucide-react';
 import {
   UserRole,
@@ -61,6 +63,9 @@ interface SettingsPageProps {
   setSales: React.Dispatch<React.SetStateAction<SaleRecord[]>>;
   onResetData: () => void;
   onResetAllSalesAndDebts?: () => void;
+  onDeleteAllTickets?: () => void;
+  onDeleteSoldTickets?: () => void;
+  onEditTicket?: (ticket: TicketType) => void;
   onNavigateTab: (tab: AppTab) => void;
   onOpenAddModal: () => void;
   showToast: (msg: string) => void;
@@ -95,6 +100,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   setSales,
   onResetData,
   onResetAllSalesAndDebts,
+  onDeleteAllTickets,
+  onDeleteSoldTickets,
+  onEditTicket,
   onNavigateTab,
   onOpenAddModal,
   showToast,
@@ -141,6 +149,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [confirmDeleteAllOpen, setConfirmDeleteAllOpen] = useState(false);
   const [confirmDeleteSoldOpen, setConfirmDeleteSoldOpen] = useState(false);
   const [confirmResetSalesOpen, setConfirmResetSalesOpen] = useState(false);
+  const [confirmRestoreDefaultOpen, setConfirmRestoreDefaultOpen] = useState(false);
+  const [cleanupSearchQuery, setCleanupSearchQuery] = useState('');
 
   // Save Pricing
   const handleSavePrice = (e: React.FormEvent) => {
@@ -239,19 +249,27 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
   // Delete All Tickets Handler (Requested by User)
   const handleDeleteAllTickets = () => {
-    setTickets([]);
-    localStorage.setItem('tl_tickets', JSON.stringify([]));
+    if (onDeleteAllTickets) {
+      onDeleteAllTickets();
+    } else {
+      setTickets([]);
+      localStorage.setItem('tl_tickets', JSON.stringify([]));
+      showToast('ထီလက်မှတ် အဟောင်းများ အားလုံးကို အောင်မြင်စွာ ဖျက်ပစ်လိုက်ပါပြီ');
+    }
     setConfirmDeleteAllOpen(false);
-    showToast('ထီလက်မှတ် အဟောင်းများ အားလုံးကို အောင်မြင်စွာ ဖျက်ပစ်လိုက်ပါပြီ');
   };
 
   // Delete Only Sold Tickets
   const handleDeleteSoldTickets = () => {
-    const filtered = tickets.filter((t) => t.status === 'available');
-    setTickets(filtered);
-    localStorage.setItem('tl_tickets', JSON.stringify(filtered));
+    if (onDeleteSoldTickets) {
+      onDeleteSoldTickets();
+    } else {
+      const filtered = tickets.filter((t) => t.status === 'available');
+      setTickets(filtered);
+      localStorage.setItem('tl_tickets', JSON.stringify(filtered));
+      showToast('ရောင်းပြီးသား ထီလက်မှတ်များကို ဖျက်ပြီး အသင့်ရှိ လက်မှတ်များကိုသာ ချန်ထားပေးပါသည်');
+    }
     setConfirmDeleteSoldOpen(false);
-    showToast('ရောင်းပြီးသား ထီလက်မှတ်များကို ဖျက်ပြီး အသင့်ရှိ လက်မှတ်များကိုသာ ချန်ထားပေးပါသည်');
   };
 
   // Start New Draw Round
@@ -853,105 +871,137 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Card 1: Reset All Sales & Debts (User Requested) */}
-            <div className="bg-rose-50/70 border border-rose-200 rounded-3xl p-6 space-y-4 flex flex-col justify-between">
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold">
-                    <RefreshCw className="w-5 h-5" />
+            <div className="bg-rose-50/70 border border-rose-200 rounded-3xl p-5 space-y-4 flex flex-col justify-between">
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold shrink-0">
+                    <RefreshCw className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-rose-950 text-sm sm:text-base">
-                      အရောင်းနှင့် အကြွေးစာရင်း အကုန် Reset ချမည်
+                    <h4 className="font-bold text-rose-950 text-sm">
+                      အရောင်း & အကြွေး Reset ချမည်
                     </h4>
-                    <p className="text-xs text-rose-800">
-                      ရောင်းရငွေ၊ အကြွေးကျန်ငွေ၊ အရောင်းမှတ်တမ်း ({sales.length}) စောင်နှင့် ဝယ်သူစာရင်းများ အားလုံး ရှင်းလင်းမည်
+                    <p className="text-[11px] text-rose-700">
+                      အရောင်းမှတ်တမ်း ({sales.length}) စောင် ရှင်းလင်းမည်
                     </p>
                   </div>
                 </div>
 
-                <p className="text-xs text-rose-900 leading-relaxed bg-white/80 p-3 rounded-xl border border-rose-200">
-                  ⚠️ အရောင်းမှတ်တမ်းများ၊ အကြွေးစာရင်းများနှင့် ဝယ်ယူသူမှတ်တမ်းများကို 0 သို့ Reset ချပြီး ရောင်းထားသော ထီလက်မှတ်များကို အစအဆုံး အသင့်ရောင်းချနိုင်သော လက်မှတ်များအဖြစ် ပြန်လည်ထားရှိပါမည်။
+                <p className="text-xs text-rose-900 leading-relaxed bg-white/80 p-2.5 rounded-xl border border-rose-200">
+                  အရောင်းမှတ်တမ်းနှင့် အကြွေးများကို ရှင်းလင်းပြီး လက်မှတ်များကို အသင့်ရောင်းနိုင်သောအခြေအနေသို့ ပြန်ထားပါမည်။
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() => setConfirmResetSalesOpen(true)}
-                className="w-full py-3 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-bold rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all"
+                className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm cursor-pointer transition-all"
               >
-                <RefreshCw className="w-4 h-4" />
-                <span>အရောင်းနှင့် အကြွေးစာရင်းများ အကုန် Reset ချမည်</span>
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>အရောင်း Reset ချမည်</span>
               </button>
             </div>
 
             {/* Card 2: Delete All Tickets */}
-            <div className="bg-slate-50 border border-slate-200 rounded-3xl p-6 space-y-4 flex flex-col justify-between">
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-slate-200 text-slate-700 flex items-center justify-center font-bold">
-                    <Trash2 className="w-5 h-5" />
+            <div className="bg-slate-50 border border-slate-200 rounded-3xl p-5 space-y-4 flex flex-col justify-between">
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-slate-200 text-slate-700 flex items-center justify-center font-bold shrink-0">
+                    <Trash2 className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-slate-900 text-sm sm:text-base">
+                    <h4 className="font-bold text-slate-900 text-sm">
                       ထီလက်မှတ် အားလုံး ဖျက်မည်
                     </h4>
-                    <p className="text-xs text-slate-600">
-                      ထီစာရင်းထဲမှ ထီလက်မှတ် ({tickets.length}) စောင်စလုံးကို အပြီးတိုင် ဖျက်ပစ်ပါမည်
+                    <p className="text-[11px] text-slate-600">
+                      လက်မှတ် ({tickets.length}) စောင် ဖျက်ပစ်မည်
                     </p>
                   </div>
                 </div>
 
-                <p className="text-xs text-slate-700 leading-relaxed bg-white p-3 rounded-xl border border-slate-200">
-                  ထီစာရင်းအဟောင်းများကို အကုန်ဖျက်ပြီး လက်မှတ်အသစ်များ အစမှ ပြန်လည်သွင်းလိုပါက ဤခလုတ်ကို နှိပ်၍ အကုန် ဖျက်နိုင်ပါသည်။
+                <p className="text-xs text-slate-700 leading-relaxed bg-white p-2.5 rounded-xl border border-slate-200">
+                  ထီစာရင်းအဟောင်းများကို အကုန်ဖျက်ပြီး လက်မှတ်အသစ်များ အစမှ ပြန်လည်သွင်းလိုပါက သုံးနိုင်ပါသည်။
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() => setConfirmDeleteAllOpen(true)}
-                className="w-full py-3 bg-slate-800 hover:bg-slate-900 active:bg-black text-white font-bold rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all"
+                className="w-full py-2.5 bg-slate-800 hover:bg-slate-900 active:bg-black text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm cursor-pointer transition-all"
               >
-                <Trash2 className="w-4 h-4" />
-                <span>ထီလက်မှတ် အားလုံး ဖျက်မည် ({tickets.length} စောင်)</span>
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>ထီအားလုံး ဖျက်မည် ({tickets.length})</span>
               </button>
             </div>
 
             {/* Card 3: Delete Only Sold Tickets */}
-            <div className="bg-amber-50/60 border border-amber-200 rounded-3xl p-6 space-y-4 flex flex-col justify-between">
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center font-bold">
-                    <Archive className="w-5 h-5" />
+            <div className="bg-amber-50/60 border border-amber-200 rounded-3xl p-5 space-y-4 flex flex-col justify-between">
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-900 flex items-center justify-center font-bold shrink-0">
+                    <Archive className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-amber-950 text-sm sm:text-base">
-                      ရောင်းပြီးသား လက်မှတ်များသာ ဖျက်မည်
+                    <h4 className="font-bold text-amber-950 text-sm">
+                      ရောင်းပြီးသားသာ ဖျက်မည်
                     </h4>
-                    <p className="text-xs text-amber-800">
-                      ရောင်းပြီး (Sold) လက်မှတ်များကိုသာ ဖျက်ပြီး မရောင်းရသေးသော လက်မှတ်များကို ချန်ထားမည်
+                    <p className="text-[11px] text-amber-800">
+                      ရောင်းပြီး လက်မှတ်များကိုသာ ဖယ်ထုတ်မည်
                     </p>
                   </div>
                 </div>
 
-                <p className="text-xs text-amber-900 leading-relaxed bg-white/80 p-3 rounded-xl border border-amber-200">
-                  ရောင်းပြီးသား လက်မှတ်များကို ရှင်းထုတ်ပြီး မရောင်းရသေးသည့် လက်မှတ်များကိုသာ ဆက်လက်ထားရှိလိုပါက သုံးနိုင်ပါသည်။
+                <p className="text-xs text-amber-900 leading-relaxed bg-white/80 p-2.5 rounded-xl border border-amber-200">
+                  ရောင်းပြီးသား လက်မှတ်များကို ရှင်းထုတ်ပြီး မရောင်းရသေးသည့် လက်မှတ်များကိုသာ ဆက်လက်ထားရှိပါမည်။
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() => setConfirmDeleteSoldOpen(true)}
-                className="w-full py-3 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-black rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all"
+                className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-all"
               >
-                <Archive className="w-4 h-4" />
-                <span>ရောင်းပြီးသား လက်မှတ်များသာ ဖျက်မည်</span>
+                <Archive className="w-3.5 h-3.5" />
+                <span>ရောင်းပြီးသားသာ ဖျက်မည်</span>
+              </button>
+            </div>
+
+            {/* Card 4: Restore Default Demo Data */}
+            <div className="bg-emerald-50/60 border border-emerald-200 rounded-3xl p-5 space-y-4 flex flex-col justify-between">
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold shrink-0">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-emerald-950 text-sm">
+                      မူလ နမူနာဒေတာ ပြန်လည်ရယူရန်
+                    </h4>
+                    <p className="text-[11px] text-emerald-700">
+                      Default Demo Data ပြန်ယူမည်
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-xs text-emerald-900 leading-relaxed bg-white/80 p-2.5 rounded-xl border border-emerald-200">
+                  စနစ်၏ မူလ နမူနာ ထီလက်မှတ်များနှင့် ဒေတာများကို Restore လုပ်၍ ပြန်လည် စတင်နိုင်ပါသည်။
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setConfirmRestoreDefaultOpen(true)}
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm cursor-pointer transition-all"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>မူလဒေတာ ပြန်ရယူမည် (Restore)</span>
               </button>
             </div>
           </div>
 
-          {/* Quick Action: Add fresh tickets */}
+          {/* Quick Action: Add fresh tickets & Manage/Edit Tickets */}
           <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <Info className="w-4 h-4 text-slate-500 shrink-0" />
@@ -960,15 +1010,118 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               </span>
             </div>
 
-            <button
-              type="button"
-              onClick={onOpenAddModal}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              <span>+ ထီလက်မှတ် အသစ်သွင်းရန်</span>
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => onNavigateTab('inventory')}
+                className="px-3.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>ထီစာရင်းသို့ သွားမည်</span>
+              </button>
+              <button
+                type="button"
+                onClick={onOpenAddModal}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>+ ထီလက်မှတ် အသစ်သွင်းရန်</span>
+              </button>
+            </div>
           </div>
+
+          {/* SUB-SECTION: QUICK EDIT & TICKET MANAGER TABLE */}
+          {tickets.length > 0 && (
+            <div className="border border-slate-200 rounded-2xl bg-white p-4 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                    <Edit3 className="w-4 h-4 text-emerald-600" />
+                    <span>ထီလက်မှတ်များ စာရင်းနှင့် အသေးစိတ် ပြင်ဆင်ရန် ({tickets.length} စောင်)</span>
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    ထီနံပါတ်၊ အတွဲ၊ စောင်တွဲ၊ ဈေးနှုန်း၊ ထွက်ရက်နှင့် ဓာတ်ပုံများကို ဤနေရာတွင်လည်း တိုက်ရိုက် Edit ပြင်ဆင်နိုင်ပါသည်
+                  </p>
+                </div>
+
+                <div className="relative w-full sm:w-64">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={cleanupSearchQuery}
+                    onChange={(e) => setCleanupSearchQuery(e.target.value)}
+                    placeholder="နံပါတ်/အမှတ်အသား ရှာပါ..."
+                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
+                {tickets
+                  .filter((t) => {
+                    if (!cleanupSearchQuery.trim()) return true;
+                    const q = cleanupSearchQuery.trim().toLowerCase();
+                    return (
+                      t.number.includes(q) ||
+                      (t.serialCode && t.serialCode.toLowerCase().includes(q)) ||
+                      (t.seriesNumber && t.seriesNumber.toLowerCase().includes(q)) ||
+                      (t.drawDate && t.drawDate.includes(q))
+                    );
+                  })
+                  .slice(0, 30)
+                  .map((t) => (
+                    <div
+                      key={t.id}
+                      className="py-2.5 px-2 flex items-center justify-between gap-3 hover:bg-slate-50 rounded-lg transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="bg-slate-900 text-amber-300 font-mono font-bold px-2 py-0.5 rounded text-sm tracking-wider border border-slate-800">
+                          {t.number}
+                        </div>
+
+                        <div className="flex items-center gap-2 text-xs flex-wrap">
+                          {t.serialCode && (
+                            <span className="text-[10px] bg-slate-100 text-slate-700 font-mono px-1.5 py-0.5 rounded border border-slate-200">
+                              🔖 {t.serialCode}
+                            </span>
+                          )}
+                          <span className="text-[10px] bg-amber-100 text-amber-900 font-bold px-1.5 py-0.5 rounded">
+                            {t.setCount || 1} စောင်တွဲ
+                          </span>
+                          <span className="text-slate-500 text-[11px]">
+                            ထွက်ရက်: {t.drawDate || '16-08-2026'}
+                          </span>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              t.status === 'available'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : t.status === 'reserved'
+                                ? 'bg-amber-100 text-amber-800'
+                                : 'bg-slate-200 text-slate-700'
+                            }`}
+                          >
+                            {t.status === 'available' ? 'အသင့်ရှိ' : t.status === 'reserved' ? 'ယာယီစစ်ဆဲ' : 'ရောင်းပြီး'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {onEditTicket && (
+                          <button
+                            type="button"
+                            onClick={() => onEditTicket(t)}
+                            className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs rounded-lg border border-emerald-200 flex items-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                            <span>ပြင်မည် (Edit)</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1178,6 +1331,45 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs cursor-pointer shadow-md"
               >
                 ဖျက်မည်
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRMATION MODAL: RESTORE DEFAULT DEMO DATA */}
+      {confirmRestoreDefaultOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-emerald-200 space-y-4 animate-in fade-in-50 zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold mx-auto">
+              <Sparkles className="w-6 h-6" />
+            </div>
+
+            <div className="text-center space-y-1.5">
+              <h4 className="text-lg font-bold text-slate-900">မူလ နမူနာဒေတာ ပြန်လည်ရယူမည်</h4>
+              <p className="text-xs text-slate-600">
+                စနစ်၏ မူလ နမူနာ ထီလက်မှတ်များနှင့် ဒေတာများကို Restore ပြန်လည် ဆောင်ရွက်ပါမည်။ ဆက်လက်လုပ်ဆောင်လိုပါသလား?
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmRestoreDefaultOpen(false)}
+                className="flex-1 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-bold cursor-pointer"
+              >
+                မလုပ်တော့ပါ
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onResetData();
+                  setConfirmRestoreDefaultOpen(false);
+                }}
+                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer shadow-md flex items-center justify-center gap-1.5"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Restore ပြုလုပ်မည်</span>
               </button>
             </div>
           </div>

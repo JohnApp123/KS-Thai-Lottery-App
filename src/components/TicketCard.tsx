@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Ticket, SaleRecord } from '../types';
 import { formatDateBurmese, toBurmeseDigits, getTicketPriceMMK, getRelativeDateLabel } from '../utils/formatters';
-import { ShoppingBag, Eye, CheckCircle2, XCircle, Camera, Maximize2, X, Clock, Check, RefreshCw, Phone, User, Calendar, ShieldCheck, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { ShoppingBag, Eye, CheckCircle2, XCircle, Camera, Maximize2, X, Clock, Check, RefreshCw, Phone, User, Calendar, ShieldCheck, Image as ImageIcon, Trash2, Edit3 } from 'lucide-react';
 
 interface TicketCardProps {
   ticket: Ticket;
@@ -12,6 +12,7 @@ interface TicketCardProps {
   onCancelReservation?: (ticket: Ticket) => void;
   onVerifyReservation?: (ticket: Ticket, saleRecord?: SaleRecord) => void;
   onDeleteTicket?: (ticket: Ticket) => void;
+  onEditTicket?: (ticket: Ticket) => void;
   isSelectedForBatch?: boolean;
   onToggleBatchSelect?: (ticket: Ticket) => void;
   batchSelectActive?: boolean;
@@ -28,6 +29,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
   onCancelReservation,
   onVerifyReservation,
   onDeleteTicket,
+  onEditTicket,
   isSelectedForBatch = false,
   onToggleBatchSelect,
   batchSelectActive = false,
@@ -112,6 +114,20 @@ export const TicketCard: React.FC<TicketCardProps> = ({
                 </>
               )}
             </div>
+
+            {onEditTicket && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditTicket(ticket);
+                }}
+                title="ဤထီလက်မှတ် အချက်အလက်များကို ပြင်ဆင်မည်"
+                className="p-1 rounded-md text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors cursor-pointer"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+              </button>
+            )}
 
             {onDeleteTicket && (
               <button

@@ -1,5 +1,6 @@
 import { supabase, SUPABASE_TABLE } from './supabaseClient';
 import { Ticket, SaleRecord, DrawResult, AdminUser, PaymentAccount } from '../types';
+import { INITIAL_TICKETS } from '../data/initialData';
 
 export const CURRENT_STATE_ROW_ID = 'current_lottery_state';
 
@@ -29,31 +30,23 @@ function extractRowData(row: any): any {
 }
 
 /**
- * Fetch all lottery data from Supabase `lottery_data` table
+ * Fetch all lottery data from Supabase `lottery_data` table directly
  */
 export async function fetchSupabaseData(): Promise<Partial<AppSyncState> | null> {
   try {
-    const { data, error } = await supabase.from(SUPABASE_TABLE).select('*');
-    if (error) {
-      console.warn('Supabase fetch notice:', error.message);
-      return null;
-    }
+    console.log('[Supabase Direct Sync] Fetching live data from table:', SUPABASE_TABLE);
+    
+    // 1. Direct query for the primary unified state row
+    const { data: primaryRow, error: primaryErr } = await supabase
+      .from(SUPABASE_TABLE)
+      .select('*')
+      .eq('id', CURRENT_STATE_ROW_ID)
+      .maybeSingle();
 
-    if (!data || data.length === 0) {
-      return null;
-    }
-
-    const state: Partial<AppSyncState> = {};
-
-    // 1. Look for the primary single unified state row: `current_lottery_state`
-    const currentStateRow = data.find((row) => {
-      const rowId = String(row.id || row.key || row.name || '').toLowerCase();
-      return rowId === CURRENT_STATE_ROW_ID || rowId === 'app_state' || rowId === 'main_state';
-    });
-
-    if (currentStateRow) {
-      const content = extractRowData(currentStateRow);
+    if (!primaryErr && primaryRow) {
+      const content = extractRowData(primaryRow);
       if (content && typeof content === 'object') {
+        const state: Partial<AppSyncState> = {};
         if (Array.isArray(content.tickets)) state.tickets = content.tickets;
         if (Array.isArray(content.sales)) state.sales = content.sales;
         if (Array.isArray(content.results)) state.results = content.results;
@@ -64,29 +57,62 @@ export async function fetchSupabaseData(): Promise<Partial<AppSyncState> | null>
         if (typeof content.fixedTicketPriceMMK === 'number') state.fixedTicketPriceMMK = content.fixedTicketPriceMMK;
         if (Array.isArray(content.archivedDrawDates)) state.archivedDrawDates = content.archivedDrawDates;
         if (content.updatedAt) state.updatedAt = content.updatedAt;
+
+        console.log('[Supabase Direct Sync] Loaded unified state:', {
+          ticketsCount: state.tickets?.length ?? 0,
+          salesCount: state.sales?.length ?? 0,
+          drawDate: state.selectedDrawDate,
+        });
+        return state;
       }
     }
 
-    // 2. Also parse individual key-value rows if some fields were stored separately
+    // 2. Fallback query across table if unified row is not yet initialized
+    const { data, error } = await supabase.from(SUPABASE_TABLE).select('*').limit(20);
+    if (error) {
+      console.warn('[Supabase Fetch Warning]:', error.message);
+      return null;
+    }
+
+    if (!data || data.length === 0) {
+      console.log('[Supabase Direct Sync] No existing rows found in database.');
+      return null;
+    }
+
+    const state: Partial<AppSyncState> = {};
+
     for (const row of data) {
       const key = String(row.id || row.key || row.name || '').toLowerCase();
       const content = extractRowData(row);
 
-      if (key === 'tickets' || key === 'lottery_tickets') {
-        if (Array.isArray(content) && !state.tickets) state.tickets = content;
-        else if (content && Array.isArray(content.tickets) && !state.tickets) state.tickets = content.tickets;
+      if (key === CURRENT_STATE_ROW_ID || key === 'app_state' || key === 'main_state') {
+        if (content && typeof content === 'object') {
+          if (Array.isArray(content.tickets)) state.tickets = content.tickets;
+          if (Array.isArray(content.sales)) state.sales = content.sales;
+          if (Array.isArray(content.results)) state.results = content.results;
+          if (Array.isArray(content.paymentAccounts)) state.paymentAccounts = content.paymentAccounts;
+          if (Array.isArray(content.admins)) state.admins = content.admins;
+          if (content.selectedDrawDate) state.selectedDrawDate = content.selectedDrawDate;
+          if (typeof content.exchangeRate === 'number') state.exchangeRate = content.exchangeRate;
+          if (typeof content.fixedTicketPriceMMK === 'number') state.fixedTicketPriceMMK = content.fixedTicketPriceMMK;
+          if (Array.isArray(content.archivedDrawDates)) state.archivedDrawDates = content.archivedDrawDates;
+          if (content.updatedAt) state.updatedAt = content.updatedAt;
+        }
+      } else if (key === 'tickets' || key === 'lottery_tickets') {
+        if (Array.isArray(content) && state.tickets === undefined) state.tickets = content;
+        else if (content && Array.isArray(content.tickets) && state.tickets === undefined) state.tickets = content.tickets;
       } else if (key === 'sales' || key === 'sale_records') {
-        if (Array.isArray(content) && !state.sales) state.sales = content;
-        else if (content && Array.isArray(content.sales) && !state.sales) state.sales = content.sales;
+        if (Array.isArray(content) && state.sales === undefined) state.sales = content;
+        else if (content && Array.isArray(content.sales) && state.sales === undefined) state.sales = content.sales;
       } else if (key === 'results' || key === 'draw_results') {
-        if (Array.isArray(content) && !state.results) state.results = content;
-        else if (content && Array.isArray(content.results) && !state.results) state.results = content.results;
+        if (Array.isArray(content) && state.results === undefined) state.results = content;
+        else if (content && Array.isArray(content.results) && state.results === undefined) state.results = content.results;
       } else if (key === 'payment_accounts' || key === 'payment_methods') {
-        if (Array.isArray(content) && !state.paymentAccounts) state.paymentAccounts = content;
-        else if (content && Array.isArray(content.paymentAccounts) && !state.paymentAccounts) state.paymentAccounts = content.paymentAccounts;
+        if (Array.isArray(content) && state.paymentAccounts === undefined) state.paymentAccounts = content;
+        else if (content && Array.isArray(content.paymentAccounts) && state.paymentAccounts === undefined) state.paymentAccounts = content.paymentAccounts;
       } else if (key === 'admins' || key === 'admin_users') {
-        if (Array.isArray(content) && !state.admins) state.admins = content;
-        else if (content && Array.isArray(content.admins) && !state.admins) state.admins = content.admins;
+        if (Array.isArray(content) && state.admins === undefined) state.admins = content;
+        else if (content && Array.isArray(content.admins) && state.admins === undefined) state.admins = content.admins;
       } else if (key === 'pricing' || key === 'settings' || key === 'config') {
         if (typeof content === 'object' && content !== null) {
           if (typeof content.exchangeRate === 'number' && state.exchangeRate === undefined) state.exchangeRate = content.exchangeRate;
@@ -97,89 +123,83 @@ export async function fetchSupabaseData(): Promise<Partial<AppSyncState> | null>
       }
     }
 
+    console.log('[Supabase Direct Sync] Loaded state from fallback query:', {
+      ticketsCount: state.tickets?.length ?? 'none',
+      salesCount: state.sales?.length ?? 'none',
+      drawDate: state.selectedDrawDate,
+    });
+
     return Object.keys(state).length > 0 ? state : null;
   } catch (err) {
-    console.error('Error fetching Supabase data:', err);
+    console.warn('[Supabase Fetch Notice]:', err);
     return null;
   }
 }
 
 /**
- * Upsert the entire unified application state into Supabase with id: 'current_lottery_state'
+ * Direct save of all application state to Supabase `lottery_data` table
  */
 export async function saveEntireStateToSupabase(state: AppSyncState): Promise<boolean> {
   try {
+    const timestamp = new Date().toISOString();
     const payload = {
-      tickets: state.tickets,
-      sales: state.sales,
-      results: state.results,
-      paymentAccounts: state.paymentAccounts,
-      admins: state.admins,
-      selectedDrawDate: state.selectedDrawDate,
-      exchangeRate: state.exchangeRate,
-      fixedTicketPriceMMK: state.fixedTicketPriceMMK,
-      archivedDrawDates: state.archivedDrawDates,
-      updatedAt: new Date().toISOString(),
+      tickets: Array.isArray(state.tickets) ? state.tickets : [],
+      sales: Array.isArray(state.sales) ? state.sales : [],
+      results: Array.isArray(state.results) ? state.results : [],
+      paymentAccounts: Array.isArray(state.paymentAccounts) ? state.paymentAccounts : [],
+      admins: Array.isArray(state.admins) ? state.admins : [],
+      selectedDrawDate: state.selectedDrawDate || '2026-09-01',
+      exchangeRate: typeof state.exchangeRate === 'number' ? state.exchangeRate : 120,
+      fixedTicketPriceMMK: typeof state.fixedTicketPriceMMK === 'number' ? state.fixedTicketPriceMMK : 15000,
+      archivedDrawDates: Array.isArray(state.archivedDrawDates) ? state.archivedDrawDates : [],
+      updatedAt: timestamp,
     };
 
-    const record = {
-      id: CURRENT_STATE_ROW_ID,
-      data: payload,
-      updated_at: new Date().toISOString(),
-    };
+    // Fast, lightweight single row upsert (under 30KB)
+    const { error } = await supabase
+      .from(SUPABASE_TABLE)
+      .upsert({
+        id: CURRENT_STATE_ROW_ID,
+        data: payload,
+        updated_at: timestamp,
+      }, { onConflict: 'id' });
 
-    const { error } = await supabase.from(SUPABASE_TABLE).upsert(record, { onConflict: 'id' });
-    if (!error) return true;
+    if (error) {
+      console.warn('[Supabase Save Warning]:', error.message);
+      return false;
+    }
 
-    // Fallback if table schema uses alternate column naming (key/value)
-    const altRecord = { key: CURRENT_STATE_ROW_ID, value: payload };
-    const { error: altError } = await supabase.from(SUPABASE_TABLE).upsert(altRecord);
-    if (!altError) return true;
-
-    console.warn('Supabase saveEntireState error:', error?.message || altError?.message);
-    return false;
+    console.log('[Supabase Direct Save] Synced state with', payload.tickets.length, 'tickets');
+    return true;
   } catch (err) {
-    console.error('Failed to save entire state to Supabase:', err);
+    console.warn('[Supabase Direct Save Notice]:', err);
     return false;
   }
 }
 
 /**
- * Upsert a key-value record into Supabase `lottery_data`
+ * Direct CRUD helper: Save tickets directly
  */
-export async function saveRecordToSupabase(key: string, data: any): Promise<boolean> {
-  try {
-    const record = {
-      id: key,
-      data: data,
-      updated_at: new Date().toISOString(),
-    };
-
-    const { error } = await supabase.from(SUPABASE_TABLE).upsert(record, { onConflict: 'id' });
-    if (!error) return true;
-
-    // Fallback if table uses alternate column names
-    const altRecord = { key: key, value: data };
-    const { error: altError } = await supabase.from(SUPABASE_TABLE).upsert(altRecord);
-    if (!altError) return true;
-
-    console.warn('Supabase upsert warning:', error?.message || altError?.message);
-    return false;
-  } catch (err) {
-    console.error('Failed to save to Supabase:', err);
-    return false;
-  }
+export async function directSaveTicketsToSupabase(tickets: Ticket[], allState: AppSyncState): Promise<boolean> {
+  return saveEntireStateToSupabase({
+    ...allState,
+    tickets,
+  });
 }
 
 /**
- * Push full current state to Supabase to initialize or sync
+ * Direct CRUD helper: Save sales and tickets directly
  */
-export async function pushFullStateToSupabase(state: AppSyncState): Promise<void> {
-  try {
-    await saveEntireStateToSupabase(state);
-  } catch (err) {
-    console.error('Error pushing full state to Supabase:', err);
-  }
+export async function directSaveSalesAndTicketsToSupabase(
+  tickets: Ticket[],
+  sales: SaleRecord[],
+  allState: AppSyncState
+): Promise<boolean> {
+  return saveEntireStateToSupabase({
+    ...allState,
+    tickets,
+    sales,
+  });
 }
 
 /**
@@ -191,8 +211,8 @@ export function subscribeToSupabaseRealtime(
 ) {
   onStatusChange?.('connecting');
 
-  // Unique channel identifier per connection to avoid reusing an already subscribed channel
   const channelName = `lottery-realtime-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  console.log('[Supabase Realtime] Subscribing to channel:', channelName, 'for table:', SUPABASE_TABLE);
 
   const channel = supabase
     .channel(channelName)
@@ -205,6 +225,7 @@ export function subscribeToSupabaseRealtime(
       },
       (payload) => {
         try {
+          console.log('[Supabase Realtime] Event received:', payload.eventType, (payload.new as any)?.id);
           const newRow = payload.new as any;
           if (!newRow) return;
 
@@ -229,11 +250,15 @@ export function subscribeToSupabaseRealtime(
               if (typeof content.fixedTicketPriceMMK === 'number') partial.fixedTicketPriceMMK = content.fixedTicketPriceMMK;
               if (Array.isArray(content.archivedDrawDates)) partial.archivedDrawDates = content.archivedDrawDates;
               if (content.updatedAt) partial.updatedAt = content.updatedAt;
+              onUpdate(partial);
+              return;
             }
           } else if (key === 'tickets' || key === 'lottery_tickets') {
             if (Array.isArray(content)) partial.tickets = content;
+            else if (content && Array.isArray(content.tickets)) partial.tickets = content.tickets;
           } else if (key === 'sales' || key === 'sale_records') {
             if (Array.isArray(content)) partial.sales = content;
+            else if (content && Array.isArray(content.sales)) partial.sales = content.sales;
           } else if (key === 'results' || key === 'draw_results') {
             if (Array.isArray(content)) partial.results = content;
           } else if (key === 'payment_accounts' || key === 'payment_methods') {
@@ -253,11 +278,12 @@ export function subscribeToSupabaseRealtime(
             onUpdate(partial);
           }
         } catch (err) {
-          console.error('Error handling realtime event:', err);
+          console.error('[Supabase Realtime Event Error]:', err);
         }
       }
     )
     .subscribe((status) => {
+      console.log('[Supabase Realtime] Channel status:', status);
       if (status === 'SUBSCRIBED') {
         onStatusChange?.('connected');
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
@@ -268,7 +294,9 @@ export function subscribeToSupabaseRealtime(
     });
 
   return () => {
+    console.log('[Supabase Realtime] Unsubscribing channel:', channelName);
     supabase.removeChannel(channel);
   };
 }
+
 

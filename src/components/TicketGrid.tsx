@@ -14,6 +14,7 @@ interface TicketGridProps {
   onCancelReservation?: (ticket: Ticket) => void;
   onVerifyReservation?: (ticket: Ticket, saleRecord?: SaleRecord) => void;
   onDeleteTicket?: (ticket: Ticket) => void;
+  onEditTicket?: (ticket: Ticket) => void;
   selectedDrawDate: string;
   exchangeRate?: number;
   fixedTicketPriceMMK?: number;
@@ -35,6 +36,7 @@ export const TicketGrid: React.FC<TicketGridProps> = ({
   onCancelReservation,
   onVerifyReservation,
   onDeleteTicket,
+  onEditTicket,
   selectedDrawDate,
   exchangeRate = 120,
   fixedTicketPriceMMK = 15000,
@@ -68,10 +70,18 @@ export const TicketGrid: React.FC<TicketGridProps> = ({
   // Unique series for filter
   const uniqueSeries = Array.from(new Set(tickets.map((t) => t.seriesNumber).filter(Boolean)));
 
+  const hasTicketsForDrawDate =
+    selectedDrawDate === 'all' ||
+    tickets.some((t) => t.drawDate === selectedDrawDate);
+
+  const activeDrawDate = hasTicketsForDrawDate
+    ? selectedDrawDate
+    : tickets[0]?.drawDate || 'all';
+
   // Filter logic
   const filteredTickets = tickets.filter((t) => {
     // Draw date filter
-    if (selectedDrawDate !== 'all' && t.drawDate !== selectedDrawDate) {
+    if (activeDrawDate !== 'all' && t.drawDate !== activeDrawDate) {
       return false;
     }
     // Status filter
@@ -436,6 +446,7 @@ export const TicketGrid: React.FC<TicketGridProps> = ({
                 onCancelReservation={onCancelReservation}
                 onVerifyReservation={onVerifyReservation}
                 onDeleteTicket={onDeleteTicket}
+                onEditTicket={onEditTicket}
                 isSelectedForBatch={selectedTicketIds.includes(ticket.id)}
                 onToggleBatchSelect={handleToggleBatchSelect}
                 batchSelectActive={batchMode}
