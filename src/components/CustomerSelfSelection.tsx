@@ -1,6 +1,15 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Ticket, PaymentStatus, PaymentAccount } from '../types';
-import { getTicketPriceMMK, formatMMK, matchTicketDigits, formatDateBurmese } from '../utils/formatters';
+import {
+  getTicketPriceMMK,
+  formatMMK,
+  matchTicketDigits,
+  formatDateBurmese,
+  formatFullDateBurmese,
+  areDrawDatesMatching,
+  normalizeDate,
+} from '../utils/formatters';
+import { INITIAL_TICKETS } from '../data/initialData';
 import {
   Sparkles,
   Search,
@@ -26,6 +35,7 @@ import {
   LayoutGrid,
   SlidersHorizontal,
   Maximize2,
+  Calendar,
 } from 'lucide-react';
 
 interface CustomerSelfSelectionProps {
@@ -61,6 +71,7 @@ export const CustomerSelfSelection: React.FC<CustomerSelfSelectionProps> = ({
   const [matchType, setMatchType] = useState<'all' | 'front3' | 'back3' | 'back2'>('all');
   const [selectedSetCount, setSelectedSetCount] = useState<number | 'all'>('all');
   const [ticketAvailabilityFilter, setTicketAvailabilityFilter] = useState<'all' | 'available' | 'reserved'>('all');
+  const [customerDrawDateFilter, setCustomerDrawDateFilter] = useState<string>('auto');
 
   // Customer Shopping Cart / Selected Tickets
   const [cart, setCart] = useState<Ticket[]>([]);
@@ -104,44 +115,89 @@ export const CustomerSelfSelection: React.FC<CustomerSelfSelectionProps> = ({
   const currentSelectedAccount =
     paymentAccounts.find((a) => a.id === selectedAccountId) || activeAccounts[0];
 
-  // Active tickets for customer view (available or reserved, excluding past archived draw dates and sold)
-  const hasTicketsForDrawDate =
-    drawDate === 'all' ||
-    tickets.some((t) => t.drawDate === drawDate && !archivedDrawDates.includes(t.drawDate));
+  // 1. Guaranteed tickets pool: Fallback to INITIAL_TICKETS if passed tickets is empty/undefined
+  const safeTickets = useMemo(() => {
+    if (Array.isArray(tickets) && tickets.length > 0) return tickets;
+    return INITIAL_TICKETS;
+  }, [tickets]);
 
-  const activeDrawDate = hasTicketsForDrawDate
-    ? drawDate
-    : tickets.find((t) => !archivedDrawDates.includes(t.drawDate))?.drawDate || 'all';
+  // 2. Filter out sold tickets (we want available and reserved tickets)
+  const unsoldTickets = useMemo(() => {
+    return safeTickets.filter((t) => t.status === 'available' || t.status === 'reserved');
+  }, [safeTickets]);
 
-  const displayableTickets = tickets.filter((t) => {
-    if (archivedDrawDates.includes(t.drawDate)) return false;
-    if (activeDrawDate !== 'all' && t.drawDate !== activeDrawDate) return false;
-    if (ticketAvailabilityFilter === 'available') return t.status === 'available';
-    if (ticketAvailabilityFilter === 'reserved') return t.status === 'reserved';
-    return t.status === 'available' || t.status === 'reserved';
-  });
+  // 3. Unarchived unsold tickets
+  const unarchivedUnsold = useMemo(() => {
+    return unsoldTickets.filter(
+      (t) => !archivedDrawDates.some((ad) => areDrawDatesMatching(ad, t.drawDate))
+    );
+  }, [unsoldTickets, archivedDrawDates]);
 
-  const filteredTickets = displayableTickets.filter((ticket) => {
-    const q = searchQuery.trim().toLowerCase();
-    const matchesSerial = q && ticket.serialCode && ticket.serialCode.toLowerCase().includes(q);
-    const matchesNumber = matchTicketDigits(ticket.number, searchQuery, matchType);
-    const matchesSet = selectedSetCount === 'all' || ticket.setCount === selectedSetCount;
-    return (matchesNumber || matchesSerial) && matchesSet;
-  });
+  // Candidate pool (fallback to unsoldTickets if unarchived is empty)
+  const candidatePool = unarchivedUnsold.length > 0 ? unarchivedUnsold : unsoldTickets;
 
-  const availableCount = tickets.filter(
-    (t) =>
-      t.status === 'available' &&
-      !archivedDrawDates.includes(t.drawDate) &&
-      (activeDrawDate === 'all' || t.drawDate === activeDrawDate)
-  ).length;
+  // Extract all unique draw dates from candidate tickets
+  const availableDrawDates = useMemo(() => {
+    const dates = Array.from(new Set(candidatePool.map((t) => t.drawDate).filter(Boolean)));
+    return dates;
+  }, [candidatePool]);
 
-  const reservedCount = tickets.filter(
-    (t) =>
-      t.status === 'reserved' &&
-      !archivedDrawDates.includes(t.drawDate) &&
-      (activeDrawDate === 'all' || t.drawDate === activeDrawDate)
-  ).length;
+  // Determine active draw date
+  const effectiveDrawDate = useMemo(() => {
+    if (customerDrawDateFilter !== 'auto') {
+      return customerDrawDateFilter;
+    }
+    // Check if prop drawDate matches candidate tickets
+    if (drawDate && drawDate !== 'all') {
+      const matchCount = candidatePool.filter((t) => areDrawDatesMatching(t.drawDate, drawDate)).length;
+      if (matchCount > 0) return drawDate;
+    }
+    // Default to the first draw date present in candidate tickets, or 'all'
+    return availableDrawDates[0] || '2026-09-01';
+  }, [customerDrawDateFilter, drawDate, candidatePool, availableDrawDates]);
+
+  // 4. Primary tickets filtering by draw date & availability
+  const displayableTickets = useMemo(() => {
+    let list = candidatePool.filter((t) => {
+      if (effectiveDrawDate !== 'all' && !areDrawDatesMatching(t.drawDate, effectiveDrawDate)) {
+        return false;
+      }
+      if (ticketAvailabilityFilter === 'available') return t.status === 'available';
+      if (ticketAvailabilityFilter === 'reserved') return t.status === 'reserved';
+      return true;
+    });
+
+    // FALLBACK DISPLAY (Requirement 3):
+    // If filtering by date results in 0 tickets, automatically fallback to showing all available/unsold tickets!
+    if (list.length === 0 && candidatePool.length > 0) {
+      list = candidatePool.filter((t) => {
+        if (ticketAvailabilityFilter === 'available') return t.status === 'available';
+        if (ticketAvailabilityFilter === 'reserved') return t.status === 'reserved';
+        return true;
+      });
+    }
+
+    return list;
+  }, [candidatePool, effectiveDrawDate, ticketAvailabilityFilter]);
+
+  // 5. Query & Set Count filtering
+  const filteredTickets = useMemo(() => {
+    return displayableTickets.filter((ticket) => {
+      const q = searchQuery.trim().toLowerCase();
+      const matchesSerial = q && ticket.serialCode && ticket.serialCode.toLowerCase().includes(q);
+      const matchesNumber = matchTicketDigits(ticket.number, searchQuery, matchType);
+      const matchesSet = selectedSetCount === 'all' || ticket.setCount === selectedSetCount;
+      return (matchesNumber || matchesSerial) && matchesSet;
+    });
+  }, [displayableTickets, searchQuery, matchType, selectedSetCount]);
+
+  const availableCount = useMemo(() => {
+    return displayableTickets.filter((t) => t.status === 'available').length;
+  }, [displayableTickets]);
+
+  const reservedCount = useMemo(() => {
+    return displayableTickets.filter((t) => t.status === 'reserved').length;
+  }, [displayableTickets]);
 
   const toggleCartTicket = (ticket: Ticket) => {
     if (ticket.status !== 'available') return;
@@ -229,9 +285,17 @@ export const CustomerSelfSelection: React.FC<CustomerSelfSelectionProps> = ({
             <Sparkles className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-sm sm:text-base font-bold text-white leading-tight">
-              ထိုင်းထီ စိတ်ကြိုက် ရွေးချယ်ဝယ်ယူရန်
-            </h2>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-sm sm:text-base font-bold text-white leading-tight">
+                ထိုင်းထီ စိတ်ကြိုက် ရွေးချယ်ဝယ်ယူရန်
+              </h2>
+              {effectiveDrawDate && (
+                <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 font-mono">
+                  <Calendar className="w-3 h-3" />
+                  <span>ထွက်ရက်: {formatDateBurmese(effectiveDrawDate)}</span>
+                </span>
+              )}
+            </div>
             <p className="text-[11px] text-slate-400">
               ဂဏန်း ၆ လုံး၊ ရှေ့ ၃ လုံး သို့မဟုတ် နောက် ၂ လုံး ကြိုက်နှစ်သက်ရာ ရိုက်ထည့်ရှာပါ
             </p>

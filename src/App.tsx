@@ -55,7 +55,9 @@ export default function App() {
   });
 
   const [tickets, setTickets] = useState<Ticket[]>(() => {
-    return safeStorage.get<Ticket[]>('tl_tickets', []);
+    const local = safeStorage.get<Ticket[]>('tl_tickets', []);
+    if (local && local.length > 0) return local;
+    return INITIAL_TICKETS;
   });
 
   const [sales, setSales] = useState<SaleRecord[]>(() => {
@@ -199,9 +201,24 @@ export default function App() {
           isRemoteSyncRef.current = true;
           
           // Apply live data directly from Supabase (never override with mock data)
-          if (cloudData.tickets !== undefined && Array.isArray(cloudData.tickets)) {
+          if (cloudData.tickets !== undefined && Array.isArray(cloudData.tickets) && cloudData.tickets.length > 0) {
             setTickets(cloudData.tickets);
             safeStorage.set('tl_tickets', cloudData.tickets);
+          } else {
+            console.log('[Supabase Init] Cloud had 0 tickets. Auto-seeding 48 initial tickets to Supabase...');
+            setTickets(INITIAL_TICKETS);
+            safeStorage.set('tl_tickets', INITIAL_TICKETS);
+            saveEntireStateToSupabase({
+              tickets: INITIAL_TICKETS,
+              sales: cloudData.sales || sales,
+              results: cloudData.results || results,
+              paymentAccounts: cloudData.paymentAccounts || paymentAccounts,
+              admins: cloudData.admins || admins,
+              selectedDrawDate: cloudData.selectedDrawDate || '2026-09-01',
+              exchangeRate: cloudData.exchangeRate || exchangeRate,
+              fixedTicketPriceMMK: cloudData.fixedTicketPriceMMK || fixedTicketPriceMMK,
+              archivedDrawDates: cloudData.archivedDrawDates || archivedDrawDates,
+            });
           }
           if (cloudData.sales !== undefined && Array.isArray(cloudData.sales)) {
             setSales(cloudData.sales);

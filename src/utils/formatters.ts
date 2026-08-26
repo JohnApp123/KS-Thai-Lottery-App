@@ -97,9 +97,31 @@ export const formatCurrency = (amount: number, _currency?: string): string => {
 };
 
 
+export const normalizeDate = (d?: string): string => {
+  if (!d) return '';
+  const clean = d.trim();
+  // Handles DD/MM/YYYY or DD-MM-YYYY -> YYYY-MM-DD
+  if (/^\d{2}[\/\-]\d{2}[\/\-]\d{4}$/.test(clean)) {
+    const parts = clean.split(/[\/\-]/);
+    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+  }
+  return clean;
+};
+
+export const areDrawDatesMatching = (d1?: string, d2?: string): boolean => {
+  if (!d1 || !d2) return false;
+  if (d1 === 'all' || d2 === 'all') return true;
+  if (d1.trim() === d2.trim()) return true;
+  return normalizeDate(d1) === normalizeDate(d2);
+};
+
 export const formatDateBurmese = (dateStr: string): string => {
   if (!dateStr) return '';
-  const parts = dateStr.split('-');
+  const clean = dateStr.trim();
+  if (/^\d{2}[\/\-]\d{2}[\/\-]\d{4}$/.test(clean)) {
+    return clean.replace(/-/g, '/');
+  }
+  const parts = clean.split('-');
   if (parts.length !== 3) return dateStr;
   const [year, month, day] = parts;
   return `${day}/${month}/${year}`;

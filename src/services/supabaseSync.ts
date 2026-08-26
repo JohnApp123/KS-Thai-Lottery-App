@@ -155,18 +155,58 @@ export async function saveEntireStateToSupabase(state: AppSyncState): Promise<bo
       updatedAt: timestamp,
     };
 
-    // Fast, lightweight single row upsert (under 30KB)
-    const { error } = await supabase
-      .from(SUPABASE_TABLE)
-      .upsert({
+    // Fast, lightweight multi-row upsert to ensure complete sync across query formats
+    const upsertRows = [
+      {
         id: CURRENT_STATE_ROW_ID,
         data: payload,
         updated_at: timestamp,
-      }, { onConflict: 'id' });
+      },
+      {
+        id: 'tickets',
+        data: payload.tickets,
+        updated_at: timestamp,
+      },
+      {
+        id: 'sales',
+        data: payload.sales,
+        updated_at: timestamp,
+      },
+      {
+        id: 'payment_accounts',
+        data: payload.paymentAccounts,
+        updated_at: timestamp,
+      },
+      {
+        id: 'pricing',
+        data: {
+          exchangeRate: payload.exchangeRate,
+          fixedTicketPriceMMK: payload.fixedTicketPriceMMK,
+          selectedDrawDate: payload.selectedDrawDate,
+          archivedDrawDates: payload.archivedDrawDates,
+        },
+        updated_at: timestamp,
+      }
+    ];
+
+    const { error } = await supabase
+      .from(SUPABASE_TABLE)
+      .upsert(upsertRows, { onConflict: 'id' });
 
     if (error) {
-      console.warn('[Supabase Save Warning]:', error.message);
-      return false;
+      // Fallback to single primary row upsert if batch encounters column differences
+      const { error: fallbackErr } = await supabase
+        .from(SUPABASE_TABLE)
+        .upsert({
+          id: CURRENT_STATE_ROW_ID,
+          data: payload,
+          updated_at: timestamp,
+        }, { onConflict: 'id' });
+
+      if (fallbackErr) {
+        console.warn('[Supabase Save Warning]:', fallbackErr.message);
+        return false;
+      }
     }
 
     console.log('[Supabase Direct Save] Synced state with', payload.tickets.length, 'tickets');
