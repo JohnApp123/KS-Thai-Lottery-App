@@ -38,33 +38,35 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 }) => {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const digits = ticket.number.padStart(6, '0').split('');
-  const isAvailable = ticket.status === 'available';
-  const isReserved = ticket.status === 'reserved';
-  const isSold = ticket.status === 'sold';
+  
+  // Status စစ်ဆေးခြင်း (Supabase data format မျိုးစုံကို အဆင်ပြေအောင် ထည့်သွင်းထားသည်)
+  const isReserved = ticket.status === 'reserved' || ticket.status === 'pending';
+  const isSold = ticket.status === 'sold' || ticket.status === 'soldout' || ticket.status === 'sold_out';
+  const isAvailable = !isReserved && !isSold;
 
   const mmkPrice = getTicketPriceMMK(ticket, fixedTicketPriceMMK, exchangeRate);
 
   return (
     <>
       <div
-        className={`relative rounded-xl border transition-all duration-200 overflow-hidden flex flex-col justify-between ${
+        className={`relative rounded-xl border-2 transition-all duration-200 overflow-hidden flex flex-col justify-between ${
           isAvailable
             ? isSelectedForBatch
-              ? 'bg-white border-emerald-500 ring-2 ring-emerald-500/20 shadow-md'
-              : 'bg-white border-slate-200/90 hover:border-slate-300 shadow-xs hover:shadow-md'
+              ? 'bg-white border-emerald-500 ring-2 ring-emerald-500/30 shadow-md'
+              : 'bg-white border-emerald-500/30 hover:border-emerald-500 shadow-sm hover:shadow-md'
             : isReserved
-            ? 'bg-amber-50/40 border-amber-300 ring-1 ring-amber-400/30 shadow-xs'
-            : 'bg-slate-50/80 border-slate-200 opacity-90'
+            ? 'bg-amber-50/70 border-amber-400 ring-2 ring-amber-400/20 shadow-md'
+            : 'bg-rose-50/40 border-rose-300/80 shadow-xs'
         }`}
       >
-        {/* Ticket Header pattern / strip */}
+        {/* Ticket Header strip */}
         <div
           className={`px-3.5 py-2 flex items-center justify-between border-b gap-1.5 flex-wrap ${
             isAvailable
-              ? 'bg-slate-50 border-slate-100'
+              ? 'bg-emerald-50/50 border-emerald-100'
               : isReserved
-              ? 'bg-amber-100/70 border-amber-200'
-              : 'bg-rose-50/60 border-rose-100'
+              ? 'bg-amber-100 border-amber-200'
+              : 'bg-rose-100/70 border-rose-200'
           }`}
         >
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -81,36 +83,36 @@ export const TicketCard: React.FC<TicketCardProps> = ({
                 🔖 {ticket.serialCode}
               </span>
             )}
-            <span className="text-[10px] bg-amber-100 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-md font-bold">
+            <span className="text-[10px] bg-slate-800 text-white px-2 py-0.5 rounded-md font-bold">
               {ticket.setCount || 1} စောင်တွဲ
             </span>
           </div>
 
-          {/* Status Badge & Delete Action */}
+          {/* Status Badge & Actions */}
           <div className="flex items-center gap-1.5">
             <div
-              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold shadow-xs ${
                 isAvailable
-                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'
+                  ? 'bg-emerald-500 text-white border border-emerald-600'
                   : isReserved
-                  ? 'bg-amber-500 text-slate-950 border border-amber-400 animate-pulse'
-                  : 'bg-rose-50 text-rose-700 border border-rose-200/80'
+                  ? 'bg-amber-500 text-slate-950 border border-amber-600 animate-pulse'
+                  : 'bg-rose-600 text-white border border-rose-700'
               }`}
             >
               {isAvailable ? (
                 <>
-                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                  <span>ပစ္စည်းရှိ</span>
+                  <CheckCircle2 className="w-3 h-3 text-white" />
+                  <span>🟢 ပစ္စည်းရှိ</span>
                 </>
               ) : isReserved ? (
                 <>
                   <Clock className="w-3 h-3 text-slate-950" />
-                  <span>ယာယီ Sold Out (ငွေလွှဲစစ်ဆေးဆဲ)</span>
+                  <span>⏳ ယာယီ Sold Out</span>
                 </>
               ) : (
                 <>
-                  <XCircle className="w-3 h-3 text-rose-600" />
-                  <span>ရောင်းပြီး</span>
+                  <XCircle className="w-3 h-3 text-white" />
+                  <span>🔴 ရောင်းပြီး (Sold Out)</span>
                 </>
               )}
             </div>
@@ -123,8 +125,8 @@ export const TicketCard: React.FC<TicketCardProps> = ({
                   e.stopPropagation();
                   onEditTicket(ticket);
                 }}
-                title="ဤထီလက်မှတ် အချက်အလက်များကို ပြင်ဆင်မည်"
-                className="p-1.5 rounded-lg text-slate-500 hover:text-amber-700 hover:bg-amber-100/80 active:scale-95 transition-all cursor-pointer border border-transparent hover:border-amber-200"
+                title="ပြင်ဆင်မည်"
+                className="p-1.5 rounded-lg text-slate-600 hover:text-amber-700 hover:bg-amber-100 active:scale-95 transition-all cursor-pointer border border-transparent hover:border-amber-300"
               >
                 <Edit3 className="w-3.5 h-3.5" />
               </button>
@@ -138,8 +140,8 @@ export const TicketCard: React.FC<TicketCardProps> = ({
                   e.stopPropagation();
                   onDeleteTicket(ticket);
                 }}
-                title="ဤထီလက်မှတ်ကို စာရင်းမှ ဖျက်ပစ်မည်"
-                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-100/80 active:scale-95 transition-all cursor-pointer border border-transparent hover:border-rose-200"
+                title="ဖျက်မည်"
+                className="p-1.5 rounded-lg text-slate-600 hover:text-rose-600 hover:bg-rose-100 active:scale-95 transition-all cursor-pointer border border-transparent hover:border-rose-300"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -147,7 +149,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
           </div>
         </div>
 
-        {/* Attached Ticket Photo Thumbnail Banner */}
+        {/* Attached Ticket Photo Thumbnail */}
         {ticket.imageUrl && (
           <div
             onClick={() => setLightboxOpen(true)}
@@ -161,9 +163,9 @@ export const TicketCard: React.FC<TicketCardProps> = ({
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex items-end justify-between p-2">
               <span className="inline-flex items-center gap-1 text-[10px] bg-slate-900/80 text-amber-300 font-bold px-2 py-0.5 rounded backdrop-blur-xs">
                 <Camera className="w-3 h-3 text-amber-400" />
-                <span>မူရင်း ထီလက်မှတ်ပုံ</span>
+                <span>မူရင်း ပုံ</span>
               </span>
-              <span className="text-[10px] text-white/90 bg-slate-900/80 p-1 rounded hover:bg-amber-500 hover:text-slate-950 transition-colors flex items-center gap-1">
+              <span className="text-[10px] text-white bg-slate-900/80 p-1 rounded hover:bg-amber-500 hover:text-slate-950 transition-colors flex items-center gap-1">
                 <Maximize2 className="w-3 h-3" />
                 <span>ချဲ့ကြည့်မည်</span>
               </span>
@@ -173,10 +175,10 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 
         {/* Main Ticket Visual Body */}
         <div className="p-4 space-y-3 relative">
-          {/* Draw Date & Price Header inside Ticket */}
+          {/* Draw Date & Price */}
           <div className="flex items-center justify-between text-xs border-b border-slate-100 pb-2">
             <div>
-              <span className="text-slate-400 block text-[10px] font-medium">ထွက်မည့်ရက်</span>
+              <span className="text-slate-400 block text-[10px] font-medium">ထွက်မည့်ရက်</span>
               <span className="font-semibold text-slate-800">{formatDateBurmese(ticket.drawDate)}</span>
             </div>
             <div className="text-right">
@@ -187,14 +189,14 @@ export const TicketCard: React.FC<TicketCardProps> = ({
             </div>
           </div>
 
-          {/* 6 Digit Big Display Box */}
+          {/* 6 Digit Display Box */}
           <div className="my-1 text-center">
             <div className="flex items-center justify-between mb-1.5 px-0.5">
               <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">
                 ထီနံပါတ် ၆ လုံး
               </p>
               {ticket.serialCode && (
-                <span className="text-[10px] font-mono font-bold text-amber-900 bg-amber-50/90 px-2 py-0.5 rounded-md border border-amber-200">
+                <span className="text-[10px] font-mono font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
                   အမှတ်စဉ်: {ticket.serialCode}
                 </span>
               )}
@@ -205,10 +207,10 @@ export const TicketCard: React.FC<TicketCardProps> = ({
                   key={idx}
                   className={`w-7 h-9 sm:w-8 sm:h-10 rounded-lg flex items-center justify-center text-lg sm:text-xl font-black font-mono shadow-xs transition-transform ${
                     isAvailable
-                      ? 'bg-slate-900 text-amber-300 border border-slate-800'
+                      ? 'bg-slate-900 text-emerald-400 border border-slate-800'
                       : isReserved
-                      ? 'bg-amber-950 text-amber-300 border border-amber-800'
-                      : 'bg-slate-200 text-slate-600 border border-slate-300'
+                      ? 'bg-amber-900 text-amber-300 border border-amber-700'
+                      : 'bg-rose-950/80 text-rose-300 border border-rose-800'
                   }`}
                 >
                   {digit}
@@ -229,21 +231,20 @@ export const TicketCard: React.FC<TicketCardProps> = ({
           {/* Sold / Reserved Customer & Sale Date Info */}
           {saleRecord && (isSold || isReserved) && (
             <div className={`p-2.5 rounded-lg border text-xs space-y-1.5 ${
-              isSold ? 'bg-slate-100/90 border-slate-200 text-slate-800' : 'bg-amber-100/70 border-amber-200 text-amber-900'
+              isSold ? 'bg-rose-50 border-rose-200 text-rose-950' : 'bg-amber-100/80 border-amber-300 text-amber-950'
             }`}>
               <div className="flex items-center justify-between text-[11px]">
                 <span className="font-bold flex items-center gap-1">
-                  <User className="w-3 h-3 text-slate-500" />
+                  <User className="w-3 h-3 text-slate-600" />
                   <span>{saleRecord.customerName}</span>
                 </span>
-                <span className="font-mono text-[10px] text-slate-600">
+                <span className="font-mono text-[10px] text-slate-700 font-bold">
                   {saleRecord.customerPhone}
                 </span>
               </div>
 
-              {/* Payment Slip Thumbnail Badge if uploaded */}
               {saleRecord.paymentSlipUrl && (
-                <div className="flex items-center gap-1.5 bg-white/90 p-1.5 rounded-lg border border-amber-300/80 text-[10px] font-bold text-amber-950">
+                <div className="flex items-center gap-1.5 bg-white p-1.5 rounded-lg border border-amber-300 text-[10px] font-bold text-amber-950">
                   <img
                     src={saleRecord.paymentSlipUrl}
                     alt="Slip SS"
@@ -256,12 +257,12 @@ export const TicketCard: React.FC<TicketCardProps> = ({
                 </div>
               )}
 
-              <div className="flex items-center justify-between text-[10px] pt-1 border-t border-slate-200/70 font-medium">
+              <div className="flex items-center justify-between text-[10px] pt-1 border-t border-slate-200 font-medium">
                 <span className="flex items-center gap-1 text-slate-600">
                   <Clock className="w-3 h-3 text-slate-400" />
                   <span>{isReserved ? 'မှာယူသည့်ရက်:' : 'ရောင်းချသည့်ရက်:'}</span>
                 </span>
-                <span className="font-mono font-bold text-slate-900 bg-white/80 px-1.5 py-0.5 rounded border border-slate-200/60">
+                <span className="font-mono font-bold text-slate-900 bg-white px-1.5 py-0.5 rounded border border-slate-200">
                   {formatDateBurmese(saleRecord.saleDate)}
                 </span>
               </div>
@@ -282,11 +283,10 @@ export const TicketCard: React.FC<TicketCardProps> = ({
             </button>
           ) : isReserved ? (
             <div className="space-y-1.5">
-              {/* Primary Verification Action Button */}
               <button
                 type="button"
                 onClick={() => onVerifyReservation ? onVerifyReservation(ticket, saleRecord) : (onConfirmPayment ? onConfirmPayment(ticket) : onViewBuyer(ticket))}
-                className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                className="w-full py-2 px-3 bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-slate-950 font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer border border-amber-600"
               >
                 <ShieldCheck className="w-4 h-4 stroke-[2.5]" />
                 <span>ငွေလွှဲ SS စစ်ဆေးအတည်ပြုမည်</span>
@@ -306,7 +306,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
                   type="button"
                   onClick={() => onCancelReservation && onCancelReservation(ticket)}
                   className="py-1.5 px-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold rounded-lg text-[11px] flex items-center justify-center gap-1 transition-all border border-rose-200 cursor-pointer"
-                  title="ငွေမလွှဲပါက ယာယီပိတ်ထားမှုကို ပယ်ဖျက်ပြီး ပြန်ရောင်းမည်"
+                  title="ပယ်ဖျက်ပြီး ပြန်ရောင်းမည်"
                 >
                   <RefreshCw className="w-3 h-3" />
                   <span>ပယ်ဖျက်မည်</span>
@@ -317,9 +317,9 @@ export const TicketCard: React.FC<TicketCardProps> = ({
             <button
               type="button"
               onClick={() => onViewBuyer(ticket)}
-              className="w-full py-2 px-3 bg-white hover:bg-slate-100 text-slate-800 font-semibold rounded-lg text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all border border-slate-200 shadow-xs cursor-pointer"
+              className="w-full py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-800 font-bold rounded-lg text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all border border-rose-200 shadow-xs cursor-pointer"
             >
-              <Eye className="w-4 h-4 text-amber-600" />
+              <Eye className="w-4 h-4 text-rose-600" />
               <span>ဝယ်သူ အချက်အလက် ကြည့်ရန်</span>
             </button>
           )}
@@ -360,4 +360,3 @@ export const TicketCard: React.FC<TicketCardProps> = ({
     </>
   );
 };
-
