@@ -177,6 +177,7 @@ export default function App() {
         const cloudData = await fetchSupabaseData();
         if (cloudData && Object.keys(cloudData).length > 0) {
           isRemoteSyncRef.current = true;
+          setSyncStatus('connected');
           
           if (cloudData.tickets !== undefined && Array.isArray(cloudData.tickets) && cloudData.tickets.length > 0) {
             setTickets(cloudData.tickets);
@@ -231,7 +232,6 @@ export default function App() {
           setTimeout(() => {
             isRemoteSyncRef.current = false;
           }, 300);
-          setSyncStatus('connected');
         } else {
           setTickets(INITIAL_TICKETS);
           safeStorage.set('tl_tickets', INITIAL_TICKETS);
@@ -290,6 +290,7 @@ export default function App() {
           setTimeout(() => {
             isRemoteSyncRef.current = false;
           }, 300);
+          setSyncStatus('connected');
         }, setSyncStatus);
 
         isInitialLoadDoneRef.current = true;
