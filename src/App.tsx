@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Ticket, SaleRecord, DrawResult, PaymentStatus, AppTab, UserRole, AdminUser, PaymentAccount } from './types';
 import { INITIAL_TICKETS, INITIAL_SALES, INITIAL_RESULTS, INITIAL_ADMINS, INITIAL_PAYMENT_ACCOUNTS } from './data/initialData';
@@ -325,7 +320,6 @@ export default function App() {
     });
   }, [persistAndBroadcast]);
 
-  // Live Auto Polling every 20 seconds
   useEffect(() => {
     const syncLiveLottery = async () => {
       try {
@@ -575,8 +569,7 @@ export default function App() {
       if (
         s.ticketId === ticket.id ||
         s.ticketNumber === ticket.number ||
-        (sale && s.id === sale.id)
-      ) {
+        (sale && s.id === sale.id)) {
         return {
           ...s,
           paymentStatus: paidStatus,
