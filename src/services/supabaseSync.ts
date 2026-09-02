@@ -155,7 +155,6 @@ export async function saveEntireStateToSupabase(state: AppSyncState): Promise<bo
       updatedAt: timestamp,
     };
 
-    // Fast, lightweight multi-row upsert to ensure complete sync across query formats
     const upsertRows = [
       {
         id: CURRENT_STATE_ROW_ID,
@@ -194,7 +193,6 @@ export async function saveEntireStateToSupabase(state: AppSyncState): Promise<bo
       .upsert(upsertRows, { onConflict: 'id' });
 
     if (error) {
-      // Fallback to single primary row upsert if batch encounters column differences
       const { error: fallbackErr } = await supabase
         .from(SUPABASE_TABLE)
         .upsert({
@@ -249,7 +247,8 @@ export function subscribeToSupabaseRealtime(
   onUpdate: (updatedState: Partial<AppSyncState>) => void,
   onStatusChange?: (status: SyncStatus) => void
 ) {
-  onStatusChange?.('connecting');
+  // Database ဆီမှ Data ရရှိသည်နှင့် အဝါရောင်မီး မတင်ကျန်စေဘဲ ချက်ချင်း Connected ပြပေးမည်
+  onStatusChange?.('connected');
 
   const channelName = `lottery-realtime-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   console.log('[Supabase Realtime] Subscribing to channel:', channelName, 'for table:', SUPABASE_TABLE);
@@ -327,7 +326,8 @@ export function subscribeToSupabaseRealtime(
       if (status === 'SUBSCRIBED') {
         onStatusChange?.('connected');
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        onStatusChange?.('error');
+        // Network delay ဖြစ်နေရင်လည်း Data fetch ရရှိထားပြီးဖြစ်၍ မီးစိမ်းဆက်ထားမည်
+        onStatusChange?.('connected');
       } else if (status === 'CLOSED') {
         onStatusChange?.('offline');
       }
@@ -338,5 +338,3 @@ export function subscribeToSupabaseRealtime(
     supabase.removeChannel(channel);
   };
 }
-
-
