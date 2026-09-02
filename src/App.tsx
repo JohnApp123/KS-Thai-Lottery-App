@@ -124,7 +124,8 @@ export default function App() {
   const [saleToVerify, setSaleToVerify] = useState<SaleRecord | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>('connecting');
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('connected');
+
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
   const isRemoteSyncRef = React.useRef(false);
   const isInitialLoadDoneRef = React.useRef(false);
