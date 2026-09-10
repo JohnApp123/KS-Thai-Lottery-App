@@ -1,3 +1,8 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Ticket, SaleRecord, DrawResult, PaymentStatus, AppTab, UserRole, AdminUser, PaymentAccount } from './types';
 import { INITIAL_TICKETS, INITIAL_SALES, INITIAL_RESULTS, INITIAL_ADMINS, INITIAL_PAYMENT_ACCOUNTS } from './data/initialData';
@@ -49,8 +54,8 @@ export default function App() {
   });
 
   const [tickets, setTickets] = useState<Ticket[]>(() => {
-    const local = safeStorage.get<Ticket[]>('tl_tickets', []);
-    if (local && local.length > 0) return local;
+    const local = safeStorage.get<Ticket[]>('tl_tickets', null as any);
+    if (local !== null && Array.isArray(local)) return local;
     return INITIAL_TICKETS;
   });
 
@@ -174,23 +179,9 @@ export default function App() {
           isRemoteSyncRef.current = true;
           setSyncStatus('connected');
           
-          if (cloudData.tickets !== undefined && Array.isArray(cloudData.tickets) && cloudData.tickets.length > 0) {
+          if (cloudData.tickets !== undefined && Array.isArray(cloudData.tickets)) {
             setTickets(cloudData.tickets);
             safeStorage.set('tl_tickets', cloudData.tickets);
-          } else {
-            setTickets(INITIAL_TICKETS);
-            safeStorage.set('tl_tickets', INITIAL_TICKETS);
-            saveEntireStateToSupabase({
-              tickets: INITIAL_TICKETS,
-              sales: cloudData.sales || sales,
-              results: cloudData.results || results,
-              paymentAccounts: cloudData.paymentAccounts || paymentAccounts,
-              admins: cloudData.admins || admins,
-              selectedDrawDate: cloudData.selectedDrawDate || '2026-09-01',
-              exchangeRate: cloudData.exchangeRate || exchangeRate,
-              fixedTicketPriceMMK: cloudData.fixedTicketPriceMMK || fixedTicketPriceMMK,
-              archivedDrawDates: cloudData.archivedDrawDates || archivedDrawDates,
-            });
           }
           if (cloudData.sales !== undefined && Array.isArray(cloudData.sales)) {
             setSales(cloudData.sales);
@@ -228,15 +219,13 @@ export default function App() {
             isRemoteSyncRef.current = false;
           }, 300);
         } else {
-          setTickets(INITIAL_TICKETS);
-          safeStorage.set('tl_tickets', INITIAL_TICKETS);
           await saveEntireStateToSupabase({
-            tickets: INITIAL_TICKETS,
+            tickets,
             sales,
             results,
             paymentAccounts,
             admins,
-            selectedDrawDate: '2026-09-01',
+            selectedDrawDate,
             exchangeRate,
             fixedTicketPriceMMK,
             archivedDrawDates,
@@ -446,18 +435,23 @@ export default function App() {
   };
 
   const handleArchiveDrawDate = (drawDateToArchive: string, newDrawDate: string) => {
-    setArchivedDrawDates((prev) => Array.from(new Set([...prev, drawDateToArchive])));
+    const updated = Array.from(new Set([...archivedDrawDates, drawDateToArchive]));
+    setArchivedDrawDates(updated);
     setSelectedDrawDate(newDrawDate);
+    persistAndBroadcast({ archivedDrawDates: updated, selectedDrawDate: newDrawDate });
     showToast(`ထီဖွင့်ရက်ဟောင်း (${drawDateToArchive}) ကို သိမ်းဆည်းပြီး ရက်သစ် (${newDrawDate}) သို့ ဖွင့်လှစ်ပြီးပါပြီ`);
   };
 
   const handleUnarchiveDrawDate = (drawDate: string) => {
-    setArchivedDrawDates((prev) => prev.filter((d) => d !== drawDate));
+    const updated = archivedDrawDates.filter((d) => d !== drawDate);
+    setArchivedDrawDates(updated);
+    persistAndBroadcast({ archivedDrawDates: updated });
     showToast(`ထီဖွင့်ရက် (${drawDate}) ကို ပြန်လည်ဖွင့်လှစ်ပြီးပါပြီ`);
   };
 
   const handleAddNewDrawDate = (newDate: string) => {
     setSelectedDrawDate(newDate);
+    persistAndBroadcast({ selectedDrawDate: newDate });
     showToast(`ထီဖွင့်ရက်အသစ် (${newDate}) ကို သတ်မှတ်လိုက်ပါပြီ`);
   };
 
@@ -465,6 +459,7 @@ export default function App() {
     const newRate = await fetchLatestTHBRate();
     if (newRate) {
       setExchangeRate(newRate);
+      persistAndBroadcast({ exchangeRate: newRate });
       showToast(`ယနေ့ Baht စျေးနှုန်း အသစ် (1 THB = ${newRate} MMK) သို့ ရယူပြင်ဆင်ပြီးပါပြီ`);
     } else {
       showToast('Baht စျေးနှုန်း ရယူရာတွင် အဆင်မပြေပါ၊ လက်ရှိ စျေးနှုန်းကိုသာ အသုံးပြုပါမည်');
@@ -827,9 +822,14 @@ export default function App() {
     const ticketNum = ticketToDelete.number;
     const remainingTickets = tickets.filter((t) => t.id !== ticketId);
     const remainingSales = sales.filter((s) => s.ticketId !== ticketId && s.ticketNumber !== ticketNum);
+    
+    // UI state ကို ချက်ချင်း update လုပ်သည်
     setTickets(remainingTickets);
     setSales(remainingSales);
+    
+    // Supabase cloud ပေါ်သို့ တိုက်ရိုက် overwrite သိမ်းဆည်းပြီး broadcast ပို့သည်
     persistAndBroadcast({ tickets: remainingTickets, sales: remainingSales });
+    
     showToast(`ထီနံပါတ် ${ticketNum} ကို စာရင်းမှ ဖျက်ပစ်ပြီးပါပြီ`);
     setDeleteTicketModalOpen(false);
     setTicketToDelete(null);
