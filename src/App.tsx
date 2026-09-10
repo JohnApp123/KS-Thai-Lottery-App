@@ -53,10 +53,10 @@ export default function App() {
     return safeStorage.get<PaymentAccount[]>('tl_payment_accounts', INITIAL_PAYMENT_ACCOUNTS);
   });
 
+  // ဝယ်သူဖက်တွင် ဒေတာအဟောင်း မကျန်စေရန် လစ်လပ် array ဖြင့်သာ စတင်ပါသည်
   const [tickets, setTickets] = useState<Ticket[]>(() => {
-    const local = safeStorage.get<Ticket[]>('tl_tickets', null as any);
-    if (local !== null && Array.isArray(local)) return local;
-    return INITIAL_TICKETS;
+    const local = safeStorage.get<Ticket[]>('tl_tickets', []);
+    return Array.isArray(local) ? local : [];
   });
 
   const [sales, setSales] = useState<SaleRecord[]>(() => {
@@ -126,7 +126,6 @@ export default function App() {
   
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('connected');
 
-  const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
   const isRemoteSyncRef = React.useRef(false);
   const isInitialLoadDoneRef = React.useRef(false);
 
@@ -219,17 +218,6 @@ export default function App() {
             isRemoteSyncRef.current = false;
           }, 300);
         } else {
-          await saveEntireStateToSupabase({
-            tickets,
-            sales,
-            results,
-            paymentAccounts,
-            admins,
-            selectedDrawDate,
-            exchangeRate,
-            fixedTicketPriceMMK,
-            archivedDrawDates,
-          });
           setSyncStatus('connected');
         }
 
@@ -278,11 +266,9 @@ export default function App() {
         }, setSyncStatus);
 
         isInitialLoadDoneRef.current = true;
-        setIsInitialLoading(false);
       } catch (err) {
         console.error('[Supabase Init Error]:', err);
         setSyncStatus('offline');
-        setIsInitialLoading(false);
       }
     };
 
@@ -327,7 +313,7 @@ export default function App() {
 
   const handleManualCloudSync = async () => {
     setSyncStatus('syncing');
-    showToast('Supabase Database မှ နောက်ဆုံး အချက်အလက်များ ရယူနေပါသည်...');
+    showToast('Database မှ နောက်ဆုံး အချက်အလက်များ ရယူနေပါသည်...');
     const cloudData = await fetchSupabaseData();
     if (cloudData) {
       isRemoteSyncRef.current = true;
@@ -371,7 +357,7 @@ export default function App() {
         isRemoteSyncRef.current = false;
       }, 300);
       setSyncStatus('connected');
-      showToast('Supabase Database နှင့် အောင်မြင်စွာ Real-time Sync ပြုလုပ်ပြီးပါပြီ');
+      showToast('Database နှင့် အောင်မြင်စွာ Real-time Sync ပြုလုပ်ပြီးပါပြီ');
     }
   };
 
@@ -390,42 +376,6 @@ export default function App() {
   useEffect(() => {
     safeStorage.set('tl_inventory_status_filter', inventoryStatusFilter);
   }, [inventoryStatusFilter]);
-
-  useEffect(() => {
-    safeStorage.set('tl_admins', admins);
-    safeStorage.set('tl_payment_accounts', paymentAccounts);
-    safeStorage.set('tl_tickets', tickets);
-    safeStorage.set('tl_sales', sales);
-    safeStorage.set('tl_results', results);
-    safeStorage.set('tl_exchange_rate', exchangeRate.toString());
-    safeStorage.set('tl_fixed_ticket_price_mmk', fixedTicketPriceMMK.toString());
-    safeStorage.set('tl_archived_draw_dates', archivedDrawDates);
-    safeStorage.set('tl_selected_draw_date', selectedDrawDate);
-
-    if (!isRemoteSyncRef.current && isInitialLoadDoneRef.current) {
-      saveEntireStateToSupabase({
-        tickets,
-        sales,
-        results,
-        paymentAccounts,
-        admins,
-        selectedDrawDate,
-        exchangeRate,
-        fixedTicketPriceMMK,
-        archivedDrawDates,
-      });
-    }
-  }, [
-    tickets,
-    sales,
-    results,
-    paymentAccounts,
-    admins,
-    selectedDrawDate,
-    exchangeRate,
-    fixedTicketPriceMMK,
-    archivedDrawDates,
-  ]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -749,18 +699,22 @@ export default function App() {
     }
   };
 
+  // ထီအသစ်ထည့်သွင်းမှုကို လက်ရှိ Draw Date နှင့် Cloud ပေါ်သို့ Force-Save လုပ်ပေးပါသည်
   const handleAddTickets = (newTicketsData: Omit<Ticket, 'id' | 'createdAt' | 'status'>[]) => {
+    const nowIso = new Date().toISOString();
     const createdTickets: Ticket[] = newTicketsData.map((d, index) => ({
       ...d,
       id: `t-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 6)}`,
-      status: 'available',
-      createdAt: new Date().toISOString(),
+      drawDate: d.drawDate || selectedDrawDate,
+      status: 'available' as const,
+      createdAt: nowIso,
     }));
 
     const updatedTickets = [...createdTickets, ...tickets];
     setTickets(updatedTickets);
+    safeStorage.set('tl_tickets', updatedTickets);
     persistAndBroadcast({ tickets: updatedTickets });
-    showToast(`ထီလက်မှတ် အသစ် ${createdTickets.length} စောင် စာရင်းထဲသို့ ထည့်သွင်းပြီးပါပြီ`);
+    showToast(`ထီလက်မှတ် အသစ် ${createdTickets.length} စောင် စာရင်းထဲသို့ အောင်မြင်စွာ ထည့်သွင်းပြီးပါပြီ`);
   };
 
   const handleTogglePaymentStatus = (saleId: string) => {
@@ -816,6 +770,7 @@ export default function App() {
     setDeleteTicketModalOpen(true);
   };
 
+  // ဖျက်သည့်အခါ State ရော Supabase Cloud ထဲပါ ချက်ချင်း overwrite သန့်စင်ပေးပါသည်
   const handleConfirmDeleteTicket = () => {
     if (!ticketToDelete) return;
     const ticketId = ticketToDelete.id;
@@ -823,11 +778,11 @@ export default function App() {
     const remainingTickets = tickets.filter((t) => t.id !== ticketId);
     const remainingSales = sales.filter((s) => s.ticketId !== ticketId && s.ticketNumber !== ticketNum);
     
-    // UI state ကို ချက်ချင်း update လုပ်သည်
     setTickets(remainingTickets);
     setSales(remainingSales);
+    safeStorage.set('tl_tickets', remainingTickets);
+    safeStorage.set('tl_sales', remainingSales);
     
-    // Supabase cloud ပေါ်သို့ တိုက်ရိုက် overwrite သိမ်းဆည်းပြီး broadcast ပို့သည်
     persistAndBroadcast({ tickets: remainingTickets, sales: remainingSales });
     
     showToast(`ထီနံပါတ် ${ticketNum} ကို စာရင်းမှ ဖျက်ပစ်ပြီးပါပြီ`);
@@ -971,6 +926,7 @@ export default function App() {
 
   const handleDeleteAllTickets = () => {
     setTickets([]);
+    safeStorage.set('tl_tickets', []);
     persistAndBroadcast({ tickets: [] });
     showToast('ထီလက်မှတ် စာရင်းအားလုံးကို ဖျက်ပစ်ပြီးပါပြီ');
   };
@@ -978,6 +934,7 @@ export default function App() {
   const handleDeleteSoldTickets = () => {
     const remaining = tickets.filter((t) => t.status !== 'sold');
     setTickets(remaining);
+    safeStorage.set('tl_tickets', remaining);
     persistAndBroadcast({ tickets: remaining });
     showToast('ရောင်းပြီးသား ထီလက်မှတ်ဟောင်းများကို ရှင်းလင်းပြီးပါပြီ');
   };
