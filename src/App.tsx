@@ -125,7 +125,6 @@ export default function App() {
   
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('connected');
 
-  // Ref များဖြင့် နောက်ဆုံး state ကို ခြေရာခံခြင်း
   const ticketsRef = useRef(tickets);
   const salesRef = useRef(sales);
   const resultsRef = useRef(results);
@@ -135,6 +134,7 @@ export default function App() {
   const exchangeRateRef = useRef(exchangeRate);
   const fixedTicketPriceMMKRef = useRef(fixedTicketPriceMMK);
   const archivedDrawDatesRef = useRef(archivedDrawDates);
+  const isSavingLocallyRef = useRef(false);
 
   useEffect(() => { ticketsRef.current = tickets; }, [tickets]);
   useEffect(() => { salesRef.current = sales; }, [sales]);
@@ -147,7 +147,8 @@ export default function App() {
   useEffect(() => { archivedDrawDatesRef.current = archivedDrawDates; }, [archivedDrawDates]);
 
   // Cloud ပေါ်သို့ တိုက်ရိုက် သေချာစွာ Save လုပ်ပေးမည့် function
-  const persistAndBroadcast = useCallback((overrides: Partial<AppSyncState>) => {
+  const persistAndBroadcast = useCallback(async (overrides: Partial<AppSyncState>) => {
+    isSavingLocallyRef.current = true;
     const currentTickets = overrides.tickets !== undefined ? overrides.tickets : ticketsRef.current;
     const currentSales = overrides.sales !== undefined ? overrides.sales : salesRef.current;
     const currentResults = overrides.results !== undefined ? overrides.results : resultsRef.current;
@@ -168,7 +169,8 @@ export default function App() {
     safeStorage.set('tl_fixed_ticket_price_mmk', currentPrice.toString());
     safeStorage.set('tl_archived_draw_dates', currentArchivedDates);
 
-    saveEntireStateToSupabase({
+    setSyncStatus('syncing');
+    const success = await saveEntireStateToSupabase({
       tickets: currentTickets,
       sales: currentSales,
       results: currentResults,
@@ -178,11 +180,15 @@ export default function App() {
       exchangeRate: currentRate,
       fixedTicketPriceMMK: currentPrice,
       archivedDrawDates: currentArchivedDates,
-    }).then((success) => {
-      if (success) {
-        setSyncStatus('connected');
-      }
     });
+
+    if (success) {
+      setSyncStatus('connected');
+    }
+    setTimeout(() => {
+      isSavingLocallyRef.current = false;
+    }, 1000);
+    return success;
   }, []);
 
   // Initial Load & Realtime Subscription
@@ -236,6 +242,9 @@ export default function App() {
         }
 
         unsubscribe = subscribeToSupabaseRealtime((updated) => {
+          // မိမိကိုယ်တိုင် Save နေချိန်တွင် Realtime ကြောင့် ပြန် overwrite မဖြစ်အောင် တားထားသည်
+          if (isSavingLocallyRef.current) return;
+
           if (Array.isArray(updated.tickets)) {
             setTickets(updated.tickets);
             safeStorage.set('tl_tickets', updated.tickets);
@@ -304,71 +313,17 @@ export default function App() {
   }, [persistAndBroadcast]);
 
   useEffect(() => {
-    const syncLiveLottery = async () => {
-      try {
-        const liveRes = await fetchLiveThaiLotteryResults(selectedDrawDate !== 'all' ? selectedDrawDate : undefined);
-        if (liveRes.success && liveRes.data) {
-          handleSaveResult(liveRes.data);
-        }
-      } catch (err) {
-        console.warn('Live poll err:', err);
-      }
-    };
-    syncLiveLottery();
-    const timer = setInterval(syncLiveLottery, 20000);
-    return () => clearInterval(timer);
-  }, [selectedDrawDate, handleSaveResult]);
-
-  const handleManualCloudSync = async () => {
-    setSyncStatus('syncing');
-    showToast('Database မှ နောက်ဆုံး အချက်အလက်များ ရယူနေပါသည်...');
-    const cloudData = await fetchSupabaseData();
-    if (cloudData) {
-      if (Array.isArray(cloudData.tickets)) {
-        setTickets(cloudData.tickets);
-        safeStorage.set('tl_tickets', cloudData.tickets);
-      }
-      if (Array.isArray(cloudData.sales)) {
-        setSales(cloudData.sales);
-        safeStorage.set('tl_sales', cloudData.sales);
-      }
-      if (Array.isArray(cloudData.results)) {
-        setResults(cloudData.results);
-        safeStorage.set('tl_results', cloudData.results);
-      }
-      if (Array.isArray(cloudData.paymentAccounts)) {
-        setPaymentAccounts(cloudData.paymentAccounts);
-        safeStorage.set('tl_payment_accounts', cloudData.paymentAccounts);
-      }
-      if (Array.isArray(cloudData.admins)) {
-        setAdmins(cloudData.admins);
-        safeStorage.set('tl_admins', cloudData.admins);
-      }
-      if (cloudData.selectedDrawDate) {
-        setSelectedDrawDate(cloudData.selectedDrawDate);
-        safeStorage.set('tl_selected_draw_date', cloudData.selectedDrawDate);
-      }
-      if (typeof cloudData.exchangeRate === 'number') {
-        setExchangeRate(cloudData.exchangeRate);
-        safeStorage.set('tl_exchange_rate', cloudData.exchangeRate.toString());
-      }
-      if (typeof cloudData.fixedTicketPriceMMK === 'number') {
-        setFixedTicketPriceMMK(cloudData.fixedTicketPriceMMK);
-        safeStorage.set('tl_fixed_ticket_price_mmk', cloudData.fixedTicketPriceMMK.toString());
-      }
-      if (Array.isArray(cloudData.archivedDrawDates)) {
-        setArchivedDrawDates(cloudData.archivedDrawDates);
-        safeStorage.set('tl_archived_draw_dates', cloudData.archivedDrawDates);
-      }
-      setSyncStatus('connected');
-      showToast('Database နှင့် အောင်မြင်စွာ Real-time Sync ပြုလုပ်ပြီးပါပြီ');
-    }
-  };
-
-  useEffect(() => { safeStorage.set('tl_user_role', userRole); }, [userRole]);
-  useEffect(() => { safeStorage.set('tl_active_admin_id', activeAdminId); }, [activeAdminId]);
-  useEffect(() => { safeStorage.set('tl_active_tab', activeTab); }, [activeTab]);
-  useEffect(() => { safeStorage.set('tl_inventory_status_filter', inventoryStatusFilter); }, [inventoryStatusFilter]);
+    safeStorage.set('tl_user_role', userRole);
+  }, [userRole]);
+  useEffect(() => {
+    safeStorage.set('tl_active_admin_id', activeAdminId);
+  }, [activeAdminId]);
+  useEffect(() => {
+    safeStorage.set('tl_active_tab', activeTab);
+  }, [activeTab]);
+  useEffect(() => {
+    safeStorage.set('tl_inventory_status_filter', inventoryStatusFilter);
+  }, [inventoryStatusFilter]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -377,8 +332,8 @@ export default function App() {
     }, 3000);
   };
 
-  // ထီလက်မှတ် အသစ်ထည့်သွင်းခြင်း - မျက်နှာပြင်ရော Cloud ထဲပါ တိုက်ရိုက် ထည့်သွင်းပေးပါသည်
-  const handleAddTickets = (newTicketsData: Omit<Ticket, 'id' | 'createdAt' | 'status'>[]) => {
+  // ထီလက်မှတ် အသစ်ထည့်သွင်းခြင်း (ချက်ချင်း အတည်ပြု သိမ်းဆည်းသည်)
+  const handleAddTickets = async (newTicketsData: Omit<Ticket, 'id' | 'createdAt' | 'status'>[]) => {
     const nowIso = new Date().toISOString();
     const effectiveDrawDate = selectedDrawDate !== 'all' ? selectedDrawDate : '2026-09-01';
 
@@ -390,22 +345,24 @@ export default function App() {
       createdAt: nowIso,
     }));
 
-    setTickets((prev) => {
-      const updated = [...createdTickets, ...prev];
-      persistAndBroadcast({ tickets: updated });
-      return updated;
-    });
+    const updated = [...createdTickets, ...ticketsRef.current];
 
+    // UI နှင့် Ref ကို ချက်ချင်း အရင်တင်သည်
+    ticketsRef.current = updated;
+    setTickets(updated);
+
+    // Cloud သို့ တိုက်ရိုက် Save သွားစေသည်
+    await persistAndBroadcast({ tickets: updated });
     showToast(`ထီလက်မှတ် အသစ် ${createdTickets.length} စောင် အောင်မြင်စွာ ထည့်သွင်းပြီးပါပြီ`);
   };
 
-  // ထီလက်မှတ် ဖျက်ခြင်း
+  // ထီလက်မှတ် ဖျက်ခြင်း (ချက်ချင်း အတည်ပြု သိမ်းဆည်းသည်)
   const handleDeleteSingleTicket = (ticket: Ticket) => {
     setTicketToDelete(ticket);
     setDeleteTicketModalOpen(true);
   };
 
-  const handleConfirmDeleteTicket = () => {
+  const handleConfirmDeleteTicket = async () => {
     if (!ticketToDelete) return;
     const ticketId = ticketToDelete.id;
     const ticketNum = ticketToDelete.number;
@@ -413,13 +370,17 @@ export default function App() {
     const remainingTickets = ticketsRef.current.filter((t) => t.id !== ticketId);
     const remainingSales = salesRef.current.filter((s) => s.ticketId !== ticketId && s.ticketNumber !== ticketNum);
 
+    ticketsRef.current = remainingTickets;
+    salesRef.current = remainingSales;
     setTickets(remainingTickets);
     setSales(remainingSales);
-    persistAndBroadcast({ tickets: remainingTickets, sales: remainingSales });
 
-    showToast(`ထီနံပါတ် ${ticketNum} ကို စာရင်းမှ ဖျက်ပစ်ပြီးပါပြီ`);
     setDeleteTicketModalOpen(false);
     setTicketToDelete(null);
+
+    await persistAndBroadcast({ tickets: remainingTickets, sales: remainingSales });
+    showToast(`ထီနံပါတ် ${ticketNum} ကို စာရင်းမှ အပြီးအပိုင် ဖျက်ပစ်ပြီးပါပြီ`);
+
     if (editTicketModalOpen && ticketToEdit?.id === ticketId) {
       setEditTicketModalOpen(false);
       setTicketToEdit(null);
@@ -970,7 +931,7 @@ export default function App() {
         onViewBuyer={handleViewBuyerFromTicket}
         onVerifyReservation={handleOpenVerification}
         syncStatus={syncStatus}
-        onManualCloudSync={handleManualCloudSync}
+        onManualCloudSync={() => {}}
         onOpenSellModal={() => {
           setTicketsToSell([]);
           setSellModalOpen(true);
