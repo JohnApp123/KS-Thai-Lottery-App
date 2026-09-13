@@ -94,12 +94,12 @@ export default function App() {
     const savedRole = safeStorage.getString('tl_user_role', 'customer');
     return savedRole === 'customer' ? 'self-select' : 'inventory';
   });
-
   const [selectedDrawDate, setSelectedDrawDate] = useState<string>(() => {
-    const saved = safeStorage.getString('tl_selected_draw_date', '2026-09-01');
-    if (saved === '2026-08-16' || !saved) return '2026-09-01';
+    const saved = safeStorage.getString('tl_selected_draw_date', '2026-09-16');
+    if (saved === '2026-08-16' || saved === '2026-09-01' || !saved) return '2026-09-16';
     return saved;
   });
+
 
   const [inventoryStatusFilter, setInventoryStatusFilter] = useState<'all' | 'available' | 'reserved' | 'sold'>(() => {
     return safeStorage.getString('tl_inventory_status_filter', 'available') as any;
@@ -598,14 +598,23 @@ export default function App() {
   };
 
   const uniqueDrawDates = Array.from(new Set(tickets.map((t) => t.drawDate).filter(Boolean)));
+  const normalizeDate = (d?: string) => (d || '').replace(/[^0-9]/g, '');
 
   const activeTickets = selectedDrawDate === 'all' 
     ? tickets 
-    : tickets.filter((t) => t.drawDate === selectedDrawDate);
+    : tickets.filter((t) => {
+        if (!t.drawDate) return true;
+        if (t.drawDate === selectedDrawDate) return true;
+        return normalizeDate(t.drawDate) === normalizeDate(selectedDrawDate);
+      });
 
   const activeSales = selectedDrawDate === 'all'
     ? sales
-    : sales.filter((s) => s.drawDate === selectedDrawDate);
+    : sales.filter((s) => {
+        if (!s.drawDate) return true;
+        if (s.drawDate === selectedDrawDate) return true;
+        return normalizeDate(s.drawDate) === normalizeDate(selectedDrawDate);
+      });
 
   const totalTicketsCount = activeTickets.length;
   const availableCount = activeTickets.filter((t) => t.status === 'available').length;
